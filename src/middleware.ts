@@ -85,7 +85,9 @@ export async function middleware(request: NextRequest) {
 /** Creates the owner account on first run, then opens a session via a server-verified magic link. */
 async function signInOwner(supabase: SupabaseClient) {
   const email = process.env.OWNER_EMAIL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
   if (!email) throw new Error("OWNER_EMAIL n'est pas défini");
   if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY n'est pas défini");
 
