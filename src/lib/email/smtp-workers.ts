@@ -41,14 +41,12 @@ const addr = (s: string) => s.replace(/[<>\r\n\s]/g, "");
 
 export function buildMime(m: SmtpMessage): string {
   const boundary = `create-${crypto.randomUUID()}`;
-  const domain = m.user.split("@")[1] ?? "localhost";
   const lines = [
     `From: ${header(m.fromName.replace(/["\r\n]/g, ""))} <${addr(m.user)}>`,
     `To: <${addr(m.to)}>`,
     ...(m.replyTo ? [`Reply-To: <${addr(m.replyTo)}>`] : []),
     `Subject: ${header(m.subject.replace(/[\r\n]/g, " "))}`,
     `Date: ${new Date().toUTCString().replace("GMT", "+0000")}`,
-    `Message-ID: <${crypto.randomUUID()}@${domain}>`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -102,7 +100,7 @@ export async function smtpSend(m: SmtpMessage, timeoutMs = 25_000): Promise<stri
 
   const session = (async () => {
     await expect([220]);
-    await expect([250], "EHLO create.app");
+    await expect([250], "EHLO [127.0.0.1]");
     await expect([235], `AUTH PLAIN ${b64(`\0${m.user}\0${m.pass}`)}`);
     await expect([250], `MAIL FROM:<${addr(m.user)}>`);
     await expect([250, 251], `RCPT TO:<${addr(m.to)}>`);

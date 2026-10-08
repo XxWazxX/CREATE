@@ -557,7 +557,6 @@ function EmailView({
       message,
       signature: profile?.settings.email.signature ?? "",
       senderName: sender,
-      coverUrl: null,
       listenUrl: share ? projectShareUrl(share.token) : "#",
       passwordProtected: share?.has_password,
     }).html;

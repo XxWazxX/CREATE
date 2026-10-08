@@ -79,7 +79,6 @@ export async function POST(req: Request) {
     message,
     signature: settings.signature,
     senderName,
-    coverUrl: project.cover_path ? `${base}/api/p/${share.token}/cover` : null,
     listenUrl: `${base}/p/${share.token}`,
     passwordProtected: !!share.password_hash,
     expiresLabel: share.expires_at
