@@ -6,7 +6,12 @@ const attempts = new Map<string, { n: number; until: number }>();
 /** Checks the device access code and remembers this device for a year. */
 export async function POST(req: Request) {
   const code = process.env.APP_ACCESS_CODE;
-  if (!code) return Response.json({ ok: true });
+  if (!code) {
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(req.url).hostname);
+    return local
+      ? Response.json({ ok: true })
+      : Response.json({ error: "APP_ACCESS_CODE n'est pas configuré sur le serveur." }, { status: 503 });
+  }
 
   const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for") ?? "local";
   const a = attempts.get(ip);

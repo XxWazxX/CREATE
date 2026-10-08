@@ -22,6 +22,22 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (matches(pathname, PUBLIC_PATHS) || matches(pathname, UNLOCK_PATHS)) return NextResponse.next({ request });
 
+  // Fail closed: online, the private app never runs without its access code
+  // or with a half-configured environment. Only variable NAMES are shown.
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(request.nextUrl.hostname);
+  const missing = [
+    !process.env.NEXT_PUBLIC_SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL (Build variable + Variable)",
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && "NEXT_PUBLIC_SUPABASE_ANON_KEY (Build variable + Variable)",
+    !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY (Secret)",
+    !process.env.OWNER_EMAIL && "OWNER_EMAIL (Variable)",
+    !local && !process.env.APP_ACCESS_CODE && "APP_ACCESS_CODE (Secret)",
+  ].filter(Boolean);
+  if (missing.length) {
+    const msg = `CREATE n'est pas encore configuré.\n\nVariables manquantes dans Cloudflare → Workers → create → Settings :\n- ${missing.join("\n- ")}\n\nAjoute-les puis redéploie (Deployments → Retry).`;
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: msg }, { status: 503 });
+    return new NextResponse(msg, { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+
   if (!(await hasAccess(request.cookies.get(ACCESS_COOKIE)?.value))) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Accès refusé" }, { status: 401 });
     const url = request.nextUrl.clone();
