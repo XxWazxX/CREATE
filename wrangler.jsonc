@@ -3,6 +3,9 @@
   // Next.js 16 on Cloudflare Workers through the OpenNext adapter.
   "name": "create",
   "main": ".open-next/worker.js",
+  // Serve on <name>.<account-subdomain>.workers.dev (re-enabled on every deploy).
+  "workers_dev": true,
+  "preview_urls": false,
   "compatibility_date": "2025-09-01",
   // nodejs_compat: Supabase / Resend / node:crypto. process.env is populated
   // from the Worker's variables and secrets (set in the Cloudflare dashboard).
