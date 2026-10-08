@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { ACCESS_COOKIE, hasAccess } from "@/lib/access";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/public-env";
 
 // Runs on the Edge runtime: Next 16's Node-only `proxy.ts` is not supported by
 // the Cloudflare (OpenNext) adapter, `middleware.ts` is.
@@ -26,8 +27,8 @@ export async function middleware(request: NextRequest) {
   // or with a half-configured environment. Only variable NAMES are shown.
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(request.nextUrl.hostname);
   const missing = [
-    !process.env.NEXT_PUBLIC_SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL (Build variable + Variable)",
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && "NEXT_PUBLIC_SUPABASE_ANON_KEY (Build variable + Variable)",
+    !SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL (Build variable + Variable)",
+    !SUPABASE_ANON_KEY && "NEXT_PUBLIC_SUPABASE_ANON_KEY (Build variable + Variable)",
     !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY (Secret)",
     !process.env.OWNER_EMAIL && "OWNER_EMAIL (Variable)",
     !local && !process.env.APP_ACCESS_CODE && "APP_ACCESS_CODE (Secret)",
@@ -47,23 +48,19 @@ export async function middleware(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-          Object.entries(headers ?? {}).forEach(([k, v]) => response.headers.set(k, v));
-        },
+  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet, headers) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        Object.entries(headers ?? {}).forEach(([k, v]) => response.headers.set(k, v));
       },
     },
-  );
+  });
 
   const { data } = await supabase.auth.getClaims();
   const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
@@ -96,7 +93,7 @@ async function signInOwner(supabase: SupabaseClient) {
   if (!email) throw new Error("OWNER_EMAIL n'est pas défini");
   if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY n'est pas défini");
 
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, {
+  const admin = createClient(SUPABASE_URL, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 

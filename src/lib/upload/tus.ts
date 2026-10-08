@@ -1,6 +1,7 @@
 "use client";
 
 import * as tus from "tus-js-client";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/public-env";
 import { accessToken } from "@/lib/supabase/client";
 import { BUCKET } from "@/lib/storage";
 
@@ -20,10 +21,10 @@ export function tusUpload(
   let aborted = false;
   const promise = new Promise<void>((resolve, reject) => {
     upload = new tus.Upload(file, {
-      endpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
+      endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 2000, 5000, 10000, 20000],
       headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        apikey: SUPABASE_ANON_KEY,
         "x-upsert": "true",
       },
       uploadDataDuringCreation: true,

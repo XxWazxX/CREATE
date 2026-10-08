@@ -1,3 +1,4 @@
+import { SUPABASE_ANON_KEY } from "@/lib/public-env";
 import { createAdminClient, serviceRoleKey } from "@/lib/supabase/admin";
 
 /**
@@ -28,6 +29,11 @@ export async function GET() {
     length: key.length,
     hadWhitespaceOrQuotes: raw !== key,
   };
+  // Public key as compiled into the browser bundle: extra pasted text is a classic mistake.
+  const anonKeyShape = {
+    cleaned: SUPABASE_ANON_KEY.slice(0, 18) + "…",
+    hadExtraText: (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim() !== SUPABASE_ANON_KEY,
+  };
   let database = "unknown";
   try {
     const { error, status } = await createAdminClient().from("project_shares").select("id").limit(1);
@@ -35,5 +41,5 @@ export async function GET() {
   } catch (e) {
     database = `error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160);
   }
-  return Response.json({ env, serviceKeyShape, database }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ env, serviceKeyShape, anonKeyShape, database }, { headers: { "Cache-Control": "no-store" } });
 }

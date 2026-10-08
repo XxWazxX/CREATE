@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/public-env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | undefined;
@@ -8,7 +9,7 @@ let client: SupabaseClient | undefined;
 /** Browser Supabase client (singleton). Uses the anon key + the user's session; RLS applies. */
 export function supabase(): SupabaseClient {
   if (!client) {
-    client = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    client = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return client;
 }
