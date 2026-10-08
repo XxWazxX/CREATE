@@ -17,6 +17,8 @@
       "service": "create"
     }
   ],
+  // Keep variables set in the Cloudflare dashboard across deployments.
+  "keep_vars": true,
   "observability": {
     "enabled": true
   }
