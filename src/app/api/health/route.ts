@@ -16,8 +16,8 @@ export async function GET() {
   };
   let database = "unknown";
   try {
-    const { error } = await createAdminClient().from("project_shares").select("id", { head: true, count: "exact" });
-    database = error ? `error: ${error.code ?? ""} ${error.message}`.slice(0, 160) : "ok";
+    const { error, status } = await createAdminClient().from("project_shares").select("id").limit(1);
+    database = error ? `error ${status}: ${error.code ?? ""} ${error.message} ${error.hint ?? ""}`.slice(0, 200) : "ok";
   } catch (e) {
     database = `error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160);
   }
