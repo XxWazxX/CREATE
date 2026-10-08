@@ -7,7 +7,7 @@ import { ACCESS_COOKIE, hasAccess } from "@/lib/access";
 // the Cloudflare (OpenNext) adapter, `middleware.ts` is.
 
 /** Public project links never get the owner session. */
-const PUBLIC_PATHS = ["/p", "/api/p"];
+const PUBLIC_PATHS = ["/p", "/api/p", "/api/health"];
 /** The access-code screen itself. */
 const UNLOCK_PATHS = ["/unlock", "/api/unlock"];
 
