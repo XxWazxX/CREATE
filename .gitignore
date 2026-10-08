@@ -33,6 +33,7 @@ yarn-error.log*
 # env files — secrets never go to GitHub (the example file has no values)
 .env*
 !.env.example
+!.env.production
 .dev.vars*
 !.dev.vars.example
 
