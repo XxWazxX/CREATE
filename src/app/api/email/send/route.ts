@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { z } from "zod";
+import { mailProvider, sendEmail } from "@/lib/email/mailer";
 import { renderProjectEmail } from "@/lib/email/template";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_SETTINGS, type Settings } from "@/lib/types";
@@ -19,15 +19,13 @@ function appUrl(req: Request) {
 }
 
 /**
- * Emails a project link through Resend (the API key never leaves the server).
+ * Emails a project link (Gmail or Resend, see lib/email/mailer — secrets stay on the server).
  * The email points to /p/{token}: the whole project, never a single track.
  */
 export async function POST(req: Request) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) {
+  if (!mailProvider()) {
     return Response.json(
-      { error: "L'e-mail n'est pas configuré : ajoute RESEND_API_KEY et RESEND_FROM_EMAIL." },
+      { error: "L'envoi d'e-mails n'est pas configuré : ajoute GMAIL_USER et GMAIL_APP_PASSWORD." },
       { status: 500 },
     );
   }
@@ -89,7 +87,6 @@ export async function POST(req: Request) {
       : null,
   });
 
-  const resend = new Resend(apiKey);
   const results: { recipient: string; ok: boolean; error?: string }[] = [];
   for (const recipient of recipients) {
     const { data: row } = await supabase
@@ -108,22 +105,21 @@ export async function POST(req: Request) {
       .select("id")
       .single();
 
-    const { data: sent, error } = await resend.emails.send({
-      from: `${senderName.replace(/[<>"]/g, "")} <${from}>`,
-      to: [recipient],
-      replyTo,
-      subject,
-      html,
-      text,
-      tags: [{ name: "app", value: "create" }],
-    });
+    let error: string | null = null;
+    let providerId: string | null = null;
+    try {
+      const sent = await sendEmail({ fromName: senderName, to: recipient, replyTo, subject, html, text });
+      providerId = sent.id;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
     if (row) {
       await supabase
         .from("email_sends")
-        .update(error ? { status: "failed", error: error.message } : { status: "sent", provider_id: sent?.id ?? null })
+        .update(error ? { status: "failed", error } : { status: "sent", provider_id: providerId })
         .eq("id", row.id);
     }
-    results.push(error ? { recipient, ok: false, error: error.message } : { recipient, ok: true });
+    results.push(error ? { recipient, ok: false, error } : { recipient, ok: true });
   }
 
   const failed = results.filter((r) => !r.ok);

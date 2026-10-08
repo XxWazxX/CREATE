@@ -165,8 +165,8 @@ function EmailTab({ s, update }: { s: Settings["email"]; update: (p: Partial<Set
     queryFn: async () =>
       (await fetch("/api/email/status")).json() as Promise<{
         configured: boolean;
+        provider: "gmail" | "resend" | null;
         from: string | null;
-        appUrl: string | null;
       }>,
   });
   return (
@@ -176,27 +176,25 @@ function EmailTab({ s, update }: { s: Settings["email"]; update: (p: Partial<Set
           <div className="border-ok/30 bg-ok/5 mb-6 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px]">
             <CheckCircle2 className="text-ok mt-0.5 size-4 shrink-0" />
             <div>
-              Envoi via Resend depuis <span className="font-mono">{status.from}</span>
-              {!status.appUrl ? (
-                <p className="text-muted mt-0.5 text-xs">
-                  Astuce : définis NEXT_PUBLIC_APP_URL pour que les liens des e-mails pointent vers ton domaine public.
-                </p>
-              ) : null}
+              Envoi {status.provider === "gmail" ? "via Gmail" : "via Resend"} depuis{" "}
+              <span className="font-mono">{status.from}</span>
             </div>
           </div>
         ) : (
           <div className="border-accent/30 bg-accent/5 mb-6 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px]">
             <AlertTriangle className="text-accent mt-0.5 size-4 shrink-0" />
             <div>
-              L&apos;e-mail n&apos;est pas encore configuré. Ajoute <span className="font-mono">RESEND_API_KEY</span>{" "}
-              and <span className="font-mono">RESEND_FROM_EMAIL</span> aux variables d&apos;environnement du serveur.
+              L&apos;envoi d&apos;e-mails n&apos;est pas encore configuré. Ajoute{" "}
+              <span className="font-mono">GMAIL_USER</span> (ton adresse Gmail) et{" "}
+              <span className="font-mono">GMAIL_APP_PASSWORD</span> (un mot de passe d&apos;application Google) aux
+              variables du serveur.
             </div>
           </div>
         )
       ) : null}
       <Card title="Expéditeur" description="Comment tes e-mails apparaissent aux destinataires.">
-        <Field label="Nom de l'expéditeur" hint="ex. Tanguy — affiché comme nom de l'expéditeur">
-          <Input value={s.fromName} onChange={(e) => update({ fromName: e.target.value })} placeholder="Tanguy" />
+        <Field label="Nom de l'expéditeur" hint="ex. Waz — affiché comme nom de l'expéditeur">
+          <Input value={s.fromName} onChange={(e) => update({ fromName: e.target.value })} placeholder="Waz" />
         </Field>
         <Field label="Adresse de réponse" hint="Les réponses arrivent ici. Par défaut : l'e-mail de ton compte.">
           <Input

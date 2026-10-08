@@ -12,6 +12,8 @@ export async function GET() {
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     OWNER_EMAIL: !!process.env.OWNER_EMAIL,
     APP_ACCESS_CODE: !!process.env.APP_ACCESS_CODE,
+    GMAIL_USER: !!process.env.GMAIL_USER,
+    GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
     RESEND_API_KEY: !!process.env.RESEND_API_KEY,
     RESEND_FROM_EMAIL: !!process.env.RESEND_FROM_EMAIL,
   };

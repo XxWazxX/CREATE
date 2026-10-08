@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // semantics and hangs on Cloudflare Workers (workerd). The app doesn't need
   // it — library data is fetched in the browser, share pages render per request.
   cacheComponents: false,
+  // nodemailer is only used by the local Node server (Workers use lib/email/smtp-workers).
+  serverExternalPackages: ["nodemailer"],
   turbopack: {
     rules: {
       "*.css": {
