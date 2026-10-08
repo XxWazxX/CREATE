@@ -66,7 +66,12 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  if (data?.claims?.sub) return response;
+  const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  const sessionEmail = (data?.claims?.email as string | undefined)?.toLowerCase();
+  // Only the owner's session counts. A leftover session (deleted account,
+  // owner email changed…) still has a valid signature for up to an hour, but
+  // would show an empty library: replace it with the owner's session.
+  if (data?.claims?.sub && sessionEmail && sessionEmail === owner) return response;
 
   try {
     await signInOwner(supabase);
