@@ -97,7 +97,15 @@ async function signInOwner(supabase: SupabaseClient) {
 
   let link = await admin.auth.admin.generateLink({ type: "magiclink", email });
   if (link.error) {
-    // First run: the owner account doesn't exist yet.
+    // Create the owner account ONLY on the very first run (empty project).
+    // If an account already exists, a different OWNER_EMAIL is a typo or a
+    // stale setting: creating a second, empty account would split the library.
+    const existing = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+    if (existing.data?.users?.length) {
+      throw new Error(
+        `OWNER_EMAIL (${email}) ne correspond à aucun compte existant. Mets l'adresse de ton compte dans les variables d'environnement`,
+      );
+    }
     const created = await admin.auth.admin.createUser({ email, email_confirm: true });
     if (created.error) throw new Error(`impossible de créer le compte propriétaire (${created.error.message})`);
     link = await admin.auth.admin.generateLink({ type: "magiclink", email });
