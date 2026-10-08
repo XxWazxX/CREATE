@@ -11,8 +11,11 @@ const Body = z.object({
   message: z.string().max(5000),
 });
 
+/** Public address for emailed links: the serving address online, NEXT_PUBLIC_APP_URL from a local run. */
 function appUrl(req: Request) {
-  return (process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin).replace(/\/$/, "");
+  const u = new URL(req.url);
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname);
+  return ((local && process.env.NEXT_PUBLIC_APP_URL) || u.origin).replace(/\/$/, "");
 }
 
 /**

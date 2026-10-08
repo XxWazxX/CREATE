@@ -66,8 +66,17 @@ export async function deleteProjectShare(share: ProjectShare) {
   );
 }
 
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
+/**
+ * Public link for a share. Online, always the address the app is served from
+ * (works with workers.dev and any custom domain). From the local app, the
+ * public address (NEXT_PUBLIC_APP_URL) so copied links work for recipients.
+ */
 export function projectShareUrl(token: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const isLocal = typeof window !== "undefined" && LOCAL_HOST.test(window.location.hostname);
+  const base = (isLocal && process.env.NEXT_PUBLIC_APP_URL) || origin || process.env.NEXT_PUBLIC_APP_URL || "";
   return `${base.replace(/\/$/, "")}/p/${token}`;
 }
 
