@@ -18,3 +18,10 @@ export function publicShape(row: Record<string, unknown>) {
   const { password_hash, ...rest } = row;
   return { ...rest, has_password: !!password_hash };
 }
+
+/** Readable message when the project_shares migration hasn't been applied yet. */
+export function shareDbError(message: string) {
+  return /project_shares|schema cache|does not exist/i.test(message)
+    ? "La base n'est pas à jour : exécute supabase/migrations/0002_project_shares.sql dans le SQL Editor de Supabase."
+    : message;
+}

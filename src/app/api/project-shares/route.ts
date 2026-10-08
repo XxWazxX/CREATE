@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { publicShape, SHARE_COLUMNS, ShareInput } from "@/lib/project-share-input";
+import { publicShape, SHARE_COLUMNS, shareDbError, ShareInput } from "@/lib/project-share-input";
 import { hashPassword, newShareToken } from "@/lib/project-share-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,6 +28,6 @@ export async function POST(req: Request) {
     })
     .select(SHARE_COLUMNS)
     .single();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return Response.json({ error: shareDbError(error.message) }, { status: 500 });
   return Response.json(publicShape(data));
 }

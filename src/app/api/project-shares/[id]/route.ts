@@ -1,6 +1,6 @@
 import { hashPassword } from "@/lib/project-share-server";
 import { createClient } from "@/lib/supabase/server";
-import { publicShape, SHARE_COLUMNS, ShareInput } from "@/lib/project-share-input";
+import { publicShape, SHARE_COLUMNS, shareDbError, ShareInput } from "@/lib/project-share-input";
 
 /** Updates a link's permissions, expiry, label or password (RLS: owner only). */
 export async function PATCH(req: Request, ctx: RouteContext<"/api/project-shares/[id]">) {
@@ -22,7 +22,7 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/project-shares
     .eq("id", id)
     .select(SHARE_COLUMNS)
     .maybeSingle();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return Response.json({ error: shareDbError(error.message) }, { status: 500 });
   if (!data) return Response.json({ error: "Lien introuvable" }, { status: 404 });
   return Response.json(publicShape(data));
 }

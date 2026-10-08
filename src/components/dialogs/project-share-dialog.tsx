@@ -40,6 +40,7 @@ import { useTracks } from "@/lib/data/tracks";
 import { renderProjectEmail } from "@/lib/email/template";
 import type { Project, ProjectShare } from "@/lib/types";
 import { confirm } from "@/lib/ui-store";
+import { shareDbError } from "@/lib/project-share-input";
 import { cn, errorMessage, relativeDate, shortDate } from "@/lib/utils";
 
 type View =
@@ -90,7 +91,7 @@ export function ProjectShareDialog({
 }) {
   const { data: projects = [] } = useProjects();
   const { data: tracks = [] } = useTracks();
-  const { data: shares, isLoading } = useProjectShares(projectId);
+  const { data: shares, isLoading, error: sharesError } = useProjectShares(projectId);
   const project = projects.find((p) => p.id === projectId);
   const trackCount = useMemo(
     () => tracks.filter((t) => t.project_id === projectId && t.file_path).length,
@@ -135,7 +136,11 @@ export function ProjectShareDialog({
       ) : null}
       {current.name !== "email" ? header : null}
 
-      {isLoading && !view ? (
+      {sharesError ? (
+        <div className="border-danger/40 bg-danger/10 text-danger rounded-xl border px-4 py-3 text-[13px]">
+          {shareDbError(errorMessage(sharesError))}
+        </div>
+      ) : isLoading && !view ? (
         <div className="flex h-40 items-center justify-center">
           <Spinner />
         </div>

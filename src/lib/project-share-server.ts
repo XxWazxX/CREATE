@@ -30,7 +30,7 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
-  return `pbkdf2-sha256${PBKDF2_ITERATIONS}${salt.toString("base64url")}${hash.toString("base64url")}`;
+  return ["pbkdf2-sha256", PBKDF2_ITERATIONS, salt.toString("base64url"), hash.toString("base64url")].join("$");
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
