@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   CREATE design tokens — dark, quiet, one accent.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0c;
+  --panel: #101012;
+  --raised: #151518;
+  --hover: #1b1b1f;
+  --active: #222227;
+  --line: #1f1f23;
+  --line-strong: #2b2b31;
+  --fg: #ececee;
+  --muted: #9b9ba3;
+  --faint: #63636b;
+  --danger: #f2706b;
+  --ok: #5fd38d;
+  --accent: #f2b544;
+  --accent-fg: #0b0b0c;
+  --wave: #3a3a41;
+}
+
+:root[data-accent="lime"] {
+  --accent: #b6e45a;
+}
+:root[data-accent="sky"] {
+  --accent: #5cc3f2;
+}
+:root[data-accent="violet"] {
+  --accent: #a99bf7;
+}
+:root[data-accent="rose"] {
+  --accent: #f2798f;
+}
+:root[data-accent="mono"] {
+  --accent: #ececee;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --animate-in: fade-in 140ms ease-out;
+  --animate-pop: pop-in 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-up: slide-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Next.js 16 on Cloudflare Workers through the OpenNext adapter.
+  "name": "create",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  // nodejs_compat: Supabase / Resend / node:crypto. process.env is populated
+  // from the Worker's variables and secrets (set in the Cloudflare dashboard).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "create"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, APP_ACCESS_CODE…) are
+  // never stored here: add them in Cloudflare → Workers → create → Settings.
+}
