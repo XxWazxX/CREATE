@@ -147,6 +147,8 @@ export type Settings = {
     fromName: string;
     replyTo: string;
     signature: string;
+    /** Instagram handle or profile URL, linked under the signature. */
+    instagram: string;
     defaultMessage: string;
   };
   audio: {
@@ -200,6 +202,7 @@ export const DEFAULT_SETTINGS: Settings = {
     fromName: "",
     replyTo: "",
     signature: "À plus,",
+    instagram: "",
     defaultMessage: "Salut,\n\nJe t'envoie quelques nouvelles prods. Dis-moi ce que tu en penses !",
   },
   audio: { defaultVolume: 0.85, autoplay: true, defaultSpeed: 1 },

@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/library";
 import { useTracks } from "@/lib/data/tracks";
 import { usePlayer } from "@/lib/player/store";
-import { renderProjectEmail } from "@/lib/email/template";
+import { instagramHandle, renderProjectEmail } from "@/lib/email/template";
 import { removeFiles } from "@/lib/storage";
 import { DEFAULT_EMAIL_DESIGN, EMAIL_FONTS, type EmailFont, type Settings } from "@/lib/types";
 import { confirm } from "@/lib/ui-store";
@@ -236,6 +236,20 @@ function EmailTab({ s, update }: { s: Settings["email"]; update: (p: Partial<Set
         <Field label="Signature" hint="Placée au-dessus de ton nom à la fin de chaque e-mail.">
           <Textarea value={s.signature} onChange={(e) => update({ signature: e.target.value })} rows={2} />
         </Field>
+        <Field
+          label="Instagram"
+          hint={
+            s.instagram && !instagramHandle(s.instagram)
+              ? "Pseudo invalide : mets juste ton @ ou le lien de ton profil."
+              : "Lien ajouté sous ta signature. Ton @ ou le lien de ton profil."
+          }
+        >
+          <Input
+            value={s.instagram ?? ""}
+            onChange={(e) => update({ instagram: e.target.value })}
+            placeholder="@tonpseudo"
+          />
+        </Field>
       </Card>
     </>
   );
@@ -328,6 +342,7 @@ function EmailDesignCard({
     trackTitles: ["Prod 1 — 140 BPM", "Prod 2 — 96 BPM", "Prod 3 — 120 BPM"],
     message: email.defaultMessage,
     signature: email.signature,
+    instagram: email.instagram,
     senderName: email.fromName || senderFallback,
     listenUrl: "#",
     design: d,

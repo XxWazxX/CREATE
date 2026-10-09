@@ -559,6 +559,7 @@ function EmailView({
       trackTitles: titles,
       message,
       signature: profile?.settings.email.signature ?? "",
+      instagram: profile?.settings.email.instagram ?? "",
       senderName: sender,
       listenUrl: share ? projectShareUrl(share.token) : "#",
       passwordProtected: share?.has_password,

@@ -32,6 +32,16 @@ export function normalizeDesign(d: Partial<EmailDesign> | null | undefined): Ema
   };
 }
 
+/** "@waz", "waz" or an instagram.com URL → "waz"; null when it isn't a valid handle. */
+export function instagramHandle(v: string | null | undefined): string | null {
+  const s = String(v ?? "")
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, "")
+    .replace(/^@/, "")
+    .replace(/[/?#].*$/, "");
+  return /^[A-Za-z0-9._]{1,30}$/.test(s) ? s : null;
+}
+
 /** Black or white text, whichever reads better on the given background. */
 function onColor(hex: string) {
   const n = parseInt(hex.slice(1), 16);
@@ -46,6 +56,8 @@ export type ProjectEmailInput = {
   message: string;
   signature: string;
   senderName: string;
+  /** Instagram handle or profile URL (from settings). */
+  instagram?: string | null;
   listenUrl: string;
   passwordProtected?: boolean;
   expiresLabel?: string | null;
@@ -79,6 +91,8 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     .join(" ");
   const list = [...shown.map(esc), moreLabel].filter(Boolean).join("<br>");
   const href = esc(i.listenUrl);
+  const ig = instagramHandle(i.instagram);
+  const igUrl = ig ? `https://www.instagram.com/${ig}/` : "";
 
   const logo =
     d.logoPath && i.logoUrl
@@ -101,6 +115,9 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     cta,
     notes ? `<p style="${p}font-size:13px;opacity:0.7;">${esc(notes)}</p>` : "",
     paragraphs(i.signature ? `${i.signature}\n${i.senderName}` : i.senderName),
+    ig
+      ? `<p style="${p}margin-top:-8px;font-size:14px;"><a href="${igUrl}" style="color:${d.accentColor};text-decoration:none;">Instagram · @${esc(ig)}</a></p>`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -122,6 +139,7 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     "",
     i.signature,
     i.senderName,
+    ig ? `Instagram : ${igUrl}` : "",
   ]
     .filter((l, idx, arr) => !(l === "" && arr[idx - 1] === ""))
     .join("\n")

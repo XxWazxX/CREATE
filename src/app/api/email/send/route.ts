@@ -79,6 +79,7 @@ export async function POST(req: Request) {
     trackTitles: titles,
     message,
     signature: settings.signature,
+    instagram: settings.instagram,
     senderName,
     listenUrl: `${base}/p/${share.token}`,
     design,
