@@ -29,9 +29,11 @@ export function GlobalDropzone() {
   const { data: projects = [] } = useProjects();
   const projectId = pathname.startsWith("/projects/") ? pathname.split("/")[2] : null;
   const project = projects.find((p) => p.id === projectId);
+  // A track's folder page (/library/{id}) takes its own drops (Prod / Stems / Session).
+  const folderPage = pathname.startsWith("/library/");
 
   useEffect(() => {
-    const isFiles = (e: DragEvent) => hasType(e, "Files");
+    const isFiles = (e: DragEvent) => !folderPage && hasType(e, "Files");
     const enter = (e: DragEvent) => {
       if (!isFiles(e)) return;
       depth.current++;
@@ -54,6 +56,12 @@ export function GlobalDropzone() {
       const files = Array.from(e.dataTransfer?.files ?? []);
       if (files.length) void importFiles(files, { projectId }).catch((err) => toast.error(errorMessage(err)));
     };
+    // Capture phase: a drop handled (and stopped) by a zone inside the page still closes the overlay.
+    const reset = () => {
+      depth.current = 0;
+      setVisible(false);
+    };
+    window.addEventListener("drop", reset, true);
     window.addEventListener("dragenter", enter);
     window.addEventListener("dragleave", leave);
     window.addEventListener("dragover", over);
@@ -63,8 +71,9 @@ export function GlobalDropzone() {
       window.removeEventListener("dragleave", leave);
       window.removeEventListener("dragover", over);
       window.removeEventListener("drop", drop);
+      window.removeEventListener("drop", reset, true);
     };
-  }, [projectId]);
+  }, [projectId, folderPage]);
 
   if (!visible) return null;
   return (

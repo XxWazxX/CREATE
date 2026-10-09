@@ -31,4 +31,5 @@ export const qk = {
   profile: ["profile"] as const,
   projectShares: (projectId: string) => ["project-shares", projectId] as const,
   storage: ["storage"] as const,
+  trackFolder: (trackId: string, folder: string) => ["track-folder", trackId, folder] as const,
 };

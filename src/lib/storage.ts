@@ -16,7 +16,24 @@ export const paths = {
   logo: (uid: string) => `users/${uid}/brand/logo-${Date.now().toString(36)}.png`,
   trackFolder: (uid: string, trackId: string) => `users/${uid}/tracks/${trackId}`,
   stemFolder: (uid: string, trackId: string) => `users/${uid}/stems/${trackId}`,
+  /** Files the owner adds to a track's "Prod" / "Session" folder (kept under their own name). */
+  folder: (uid: string, trackId: string, folder: TrackFolder) => `users/${uid}/tracks/${trackId}/${folder}`,
+  folderFile: (uid: string, trackId: string, folder: TrackFolder, name: string) =>
+    `users/${uid}/tracks/${trackId}/${folder}/${storageName(name)}`,
 };
+
+export type TrackFolder = "prod" | "session";
+
+/** Storage keys only accept a subset of ASCII: drop accents, replace the rest. */
+export function storageName(name: string): string {
+  const s = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\w.\-() &@=+,!'$]/g, "_")
+    .replace(/^[.\s]+/, "")
+    .trim();
+  return (s || "fichier").slice(-180);
+}
 
 // ---------------------------------------------------------------------------
 // Signed URL cache with request batching (one round-trip for a whole list).

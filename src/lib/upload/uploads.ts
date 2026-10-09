@@ -8,7 +8,7 @@ import { getQueryClient, qk } from "@/lib/data/client";
 import { invalidateTrack, mapTrack, patchTrackCache, refreshTrack, upsertTrackCache } from "@/lib/data/tracks";
 import { normalizeKey, guessStemKind, type StemKind } from "@/lib/music";
 import { currentUserId, supabase } from "@/lib/supabase/client";
-import { BUCKET, paths } from "@/lib/storage";
+import { BUCKET, paths, type TrackFolder } from "@/lib/storage";
 import { audioMime, errorMessage, fileExtension, isAudioFile, isLossless, titleFromFilename } from "@/lib/utils";
 import { parseFilenameMeta } from "@/lib/filename-meta";
 import { tusUpload } from "./tus";
@@ -17,7 +17,7 @@ export type UploadStage = "queued" | "uploading" | "processing" | "done" | "erro
 
 export type UploadJob = {
   id: string;
-  kind: "track" | "version" | "stem";
+  kind: "track" | "version" | "stem" | "file";
   name: string;
   trackId: string;
   progress: number;
@@ -319,6 +319,33 @@ export async function uploadStems(trackId: string, files: File[], versionId: str
     });
   }
   await invalidateTrack(trackId);
+}
+
+// ---------------------------------------------------------------------------
+// Prod / Session folders: any file, stored as-is (nothing converted or generated)
+// ---------------------------------------------------------------------------
+
+export async function uploadFolderFiles(trackId: string, folder: TrackFolder, files: File[]) {
+  const uid = await currentUserId();
+  for (const file of files) {
+    const jobId = crypto.randomUUID();
+    const filePath = paths.folderFile(uid, trackId, folder, file.name);
+    jobs().add({ id: jobId, kind: "file", name: file.name, trackId, progress: 0, stage: "queued" });
+    schedule(async () => {
+      try {
+        const handle = tusUpload(file, filePath, file.type || "application/octet-stream", (p) =>
+          jobs().update(jobId, { progress: p }),
+        );
+        jobs().update(jobId, { stage: "uploading", abort: handle.abort });
+        await handle.promise;
+        jobs().update(jobId, { stage: "done", progress: 1, abort: undefined });
+      } catch (e) {
+        jobs().update(jobId, { stage: "error", error: errorMessage(e) });
+      } finally {
+        void getQueryClient().invalidateQueries({ queryKey: qk.trackFolder(trackId, folder) });
+      }
+    });
+  }
 }
 
 /** Re-runs BPM / key detection for an existing track from its stored audio. */

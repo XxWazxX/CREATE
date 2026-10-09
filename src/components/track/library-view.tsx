@@ -1,8 +1,8 @@
 "use client";
 
 import * as Popover from "@radix-ui/react-popover";
-import { Check, Heart, Play, Search, Shuffle, SlidersHorizontal, Upload, X } from "lucide-react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { Check, Folder, Heart, List, Play, Search, Shuffle, SlidersHorizontal, Upload, X } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { EmptyState, TagPill } from "@/components/ui/misc";
@@ -16,6 +16,7 @@ import type { Project, Track } from "@/lib/types";
 import { pickAndImport } from "@/lib/upload/pick";
 import { cn } from "@/lib/utils";
 import { flattenProjects } from "./fields";
+import { FolderGrid } from "./folder-grid";
 import { sortTracks, TrackList, type Sort } from "./track-list";
 
 type Props = {
@@ -29,7 +30,11 @@ type Props = {
   uploadProjectId?: string | null;
   header?: React.ReactNode;
   hideFilters?: (keyof Filters)[];
+  /** Offer the folder layout (one folder per track) — the Library page. */
+  folders?: boolean;
 };
+
+const LAYOUT_KEY = "create.library.layout";
 
 export function LibraryView({
   preset,
@@ -40,7 +45,22 @@ export function LibraryView({
   uploadProjectId = null,
   header,
   hideFilters = [],
+  folders = false,
 }: Props) {
+  const [layout, setLayout] = useState<"folders" | "list">(folders ? "folders" : "list");
+  useEffect(() => {
+    if (!folders) return;
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore the remembered layout after hydration
+      if (localStorage.getItem(LAYOUT_KEY) === "list") setLayout("list");
+    } catch {}
+  }, [folders]);
+  const chooseLayout = (l: "folders" | "list") => {
+    setLayout(l);
+    try {
+      localStorage.setItem(LAYOUT_KEY, l);
+    } catch {}
+  };
   const { data: tracks, isLoading, error } = useTracks();
   const { data: projects = [] } = useProjects();
   const { data: tags = [] } = useTags();
@@ -75,6 +95,40 @@ export function LibraryView({
   );
   const filterCount = activeFilterCount(filters);
   const totalDuration = visible.reduce((s, t) => s + (t.duration ?? 0), 0);
+
+  const empty =
+    scoped.length && (query || filterCount) ? (
+      <EmptyState
+        icon={Search}
+        title="Aucun résultat"
+        action={
+          <Button
+            onClick={() => {
+              setQuery("");
+              setFilters({});
+            }}
+          >
+            Effacer les filtres
+          </Button>
+        }
+      >
+        Rien ne correspond à ces filtres.
+      </EmptyState>
+    ) : (
+      (emptyState ?? (
+        <EmptyState
+          icon={Upload}
+          title="Ta bibliothèque est vide"
+          action={
+            <Button variant="primary" onClick={() => pickAndImport(uploadProjectId)}>
+              <Upload /> Importer des beats
+            </Button>
+          }
+        >
+          Dépose des fichiers WAV, MP3, AIFF ou M4A n’importe où dans la fenêtre.
+        </EmptyState>
+      ))
+    );
 
   if (error) {
     return <p className="text-danger px-8 py-10 text-sm">Impossible de charger la bibliothèque : {error.message}</p>;
@@ -128,6 +182,24 @@ export function LibraryView({
           </Button>
         ) : null}
         <div className="ml-auto flex items-center gap-2">
+          {folders ? (
+            <div className="border-line flex rounded-lg border p-0.5">
+              {(["folders", "list"] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => chooseLayout(l)}
+                  className={cn(
+                    "flex h-6.5 items-center gap-1.5 rounded-md px-2 text-xs",
+                    layout === l ? "bg-hover text-fg" : "text-muted hover:text-fg",
+                  )}
+                  aria-pressed={layout === l}
+                >
+                  {l === "folders" ? <Folder className="size-3.5" /> : <List className="size-3.5" />}
+                  <span className="max-sm:hidden">{l === "folders" ? "Dossiers" : "Liste"}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           <span className="text-faint hidden text-xs lg:inline">
             {visible.length} morceau{visible.length === 1 ? "" : "x"}
             {totalDuration ? ` · ${Math.round(totalDuration / 60)} min` : ""}
@@ -173,47 +245,10 @@ export function LibraryView({
             </div>
           ))}
         </div>
+      ) : layout === "folders" ? (
+        <FolderGrid tracks={visible} emptyState={empty} />
       ) : (
-        <TrackList
-          tracks={visible}
-          sort={sort}
-          onSortChange={setSort}
-          showProject={showProject}
-          emptyState={
-            scoped.length && (query || filterCount) ? (
-              <EmptyState
-                icon={Search}
-                title="Aucun résultat"
-                action={
-                  <Button
-                    onClick={() => {
-                      setQuery("");
-                      setFilters({});
-                    }}
-                  >
-                    Effacer les filtres
-                  </Button>
-                }
-              >
-                Rien ne correspond à ces filtres.
-              </EmptyState>
-            ) : (
-              (emptyState ?? (
-                <EmptyState
-                  icon={Upload}
-                  title="Ta bibliothèque est vide"
-                  action={
-                    <Button variant="primary" onClick={() => pickAndImport(uploadProjectId)}>
-                      <Upload /> Importer des beats
-                    </Button>
-                  }
-                >
-                  Dépose des fichiers WAV, MP3, AIFF ou M4A n’importe où dans la fenêtre.
-                </EmptyState>
-              ))
-            )
-          }
-        />
+        <TrackList tracks={visible} sort={sort} onSortChange={setSort} showProject={showProject} emptyState={empty} />
       )}
     </div>
   );

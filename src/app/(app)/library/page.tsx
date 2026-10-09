@@ -8,6 +8,7 @@ export default function LibraryPage() {
   const { data } = useTracks();
   return (
     <LibraryView
+      folders
       header={
         <PageHeader
           title="Bibliothèque"

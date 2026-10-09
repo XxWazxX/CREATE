@@ -208,6 +208,8 @@ export async function deleteTracksForever(ids: string[]) {
   for (const id of ids) {
     await removeFolder(paths.trackFolder(uid, id));
     await removeFolder(paths.stemFolder(uid, id));
+    await removeFolder(paths.folder(uid, id, "prod"));
+    await removeFolder(paths.folder(uid, id, "session"));
   }
   await removeFiles((rows ?? []).map((r) => r.cover_path as string | null));
   const { error } = await supabase().from("tracks").delete().in("id", ids);
