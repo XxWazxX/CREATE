@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 
 export const BUCKET = "media";
 
-/** Storage layout: users/{uid}/tracks|stems|covers/... */
+/** Storage layout: users/{uid}/tracks|stems|covers|brand/... */
 export const paths = {
   version: (uid: string, trackId: string, versionId: string, ext: string) =>
     `users/${uid}/tracks/${trackId}/${versionId}.${ext || "bin"}`,
@@ -13,6 +13,7 @@ export const paths = {
   stem: (uid: string, trackId: string, stemId: string, ext: string) =>
     `users/${uid}/stems/${trackId}/${stemId}.${ext || "bin"}`,
   cover: (uid: string, ownerId: string) => `users/${uid}/covers/${ownerId}-${Date.now().toString(36)}.jpg`,
+  logo: (uid: string) => `users/${uid}/brand/logo-${Date.now().toString(36)}.png`,
   trackFolder: (uid: string, trackId: string) => `users/${uid}/tracks/${trackId}`,
   stemFolder: (uid: string, trackId: string) => `users/${uid}/stems/${trackId}`,
 };

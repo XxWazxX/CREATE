@@ -240,6 +240,7 @@ function mergeSettings(s: Partial<Settings> | null | undefined): Settings {
     email: { ...DEFAULT_SETTINGS.email, ...(s?.email ?? {}) },
     audio: { ...DEFAULT_SETTINGS.audio, ...(s?.audio ?? {}) },
     appearance: { ...DEFAULT_SETTINGS.appearance, ...(s?.appearance ?? {}) },
+    emailDesign: { ...DEFAULT_SETTINGS.emailDesign, ...(s?.emailDesign ?? {}) },
   };
 }
 
@@ -327,6 +328,28 @@ export async function uploadCover(ownerId: string, file: File): Promise<string> 
   const path = paths.cover(uid, ownerId);
   const { error } = await supabase().storage.from("media").upload(path, blob, {
     contentType: "image/jpeg",
+    cacheControl: "31536000",
+  });
+  if (error) throw error;
+  return path;
+}
+
+/** Email logo: keeps its proportions and transparency (PNG), at most 600px wide. */
+export async function uploadLogo(file: File): Promise<string> {
+  const uid = await currentUserId();
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 600 / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Impossible d'encoder l'image"))), "image/png"),
+  );
+  const path = paths.logo(uid);
+  const { error } = await supabase().storage.from("media").upload(path, blob, {
+    contentType: "image/png",
     cacheControl: "31536000",
   });
   if (error) throw error;

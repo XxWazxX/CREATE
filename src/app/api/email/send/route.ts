@@ -69,6 +69,7 @@ export async function POST(req: Request) {
   };
   const senderName = settings.fromName || profile?.display_name || auth.user.email?.split("@")[0] || "Moi";
   const replyTo = settings.replyTo || auth.user.email || undefined;
+  const design = (profile?.settings as Settings | null)?.emailDesign ?? null;
   const base = appUrl(req);
   const titles = (tracks ?? []).map((t) => t.title as string);
 
@@ -80,6 +81,9 @@ export async function POST(req: Request) {
     signature: settings.signature,
     senderName,
     listenUrl: `${base}/p/${share.token}`,
+    design,
+    coverUrl: project.cover_path ? `${base}/api/p/${share.token}/cover` : null,
+    logoUrl: design?.logoPath ? `${base}/api/p/${share.token}/logo` : null,
     passwordProtected: !!share.password_hash,
     expiresLabel: share.expires_at
       ? new Date(share.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })

@@ -157,6 +157,42 @@ export type Settings = {
   appearance: {
     accent: string;
   };
+  emailDesign: EmailDesign;
+};
+
+export const EMAIL_FONTS = {
+  sans: { label: "Sans serif", stack: "Arial,Helvetica,sans-serif" },
+  serif: { label: "Serif", stack: "Georgia,'Times New Roman',serif" },
+  modern: { label: "Moderne", stack: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" },
+  mono: { label: "Mono", stack: "ui-monospace,Menlo,Consolas,'Courier New',monospace" },
+} as const;
+export type EmailFont = keyof typeof EMAIL_FONTS;
+
+/** Look of the project email (Settings → E-mail → Design). */
+export type EmailDesign = {
+  font: EmailFont;
+  textColor: string;
+  accentColor: string;
+  background: string;
+  cta: "link" | "button";
+  ctaLabel: string;
+  showCover: boolean;
+  logoPath: string | null;
+  logoWidth: number;
+  logoAlign: "left" | "center";
+};
+
+export const DEFAULT_EMAIL_DESIGN: EmailDesign = {
+  font: "sans",
+  textColor: "#2b2b2f",
+  accentColor: "#1a73e8",
+  background: "#ffffff",
+  cta: "link",
+  ctaLabel: "Écouter le projet",
+  showCover: false,
+  logoPath: null,
+  logoWidth: 140,
+  logoAlign: "left",
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -168,6 +204,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   audio: { defaultVolume: 0.85, autoplay: true, defaultSpeed: 1 },
   appearance: { accent: "amber" },
+  emailDesign: DEFAULT_EMAIL_DESIGN,
 };
 
 export type Profile = {

@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Check, CheckCircle2, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ImagePlus, RotateCcw, Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useSignedUrl } from "@/components/ui/cover";
 import { Field, Input, Switch, Textarea } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/misc";
 import { Slider } from "@/components/ui/slider";
@@ -15,13 +16,16 @@ import {
   deleteTag,
   saveProfile,
   updateTag,
+  uploadLogo,
   useProfile,
   useStorageUsage,
   useTags,
 } from "@/lib/data/library";
 import { useTracks } from "@/lib/data/tracks";
 import { usePlayer } from "@/lib/player/store";
-import type { Settings } from "@/lib/types";
+import { renderProjectEmail } from "@/lib/email/template";
+import { removeFiles } from "@/lib/storage";
+import { DEFAULT_EMAIL_DESIGN, EMAIL_FONTS, type EmailFont, type Settings } from "@/lib/types";
 import { confirm } from "@/lib/ui-store";
 import { cn, errorMessage, formatBytes } from "@/lib/utils";
 
@@ -110,7 +114,15 @@ export default function SettingsPage() {
           ) : tab === "Compte" ? (
             <AccountTab email={profile.email} displayName={profile.display_name ?? ""} />
           ) : tab === "E-mail" ? (
-            <EmailTab s={draft.email} update={(p) => update("email", p)} />
+            <>
+              <EmailTab s={draft.email} update={(p) => update("email", p)} />
+              <EmailDesignCard
+                d={draft.emailDesign}
+                email={draft.email}
+                senderFallback={profile.display_name || profile.email.split("@")[0] || "Moi"}
+                update={(p) => update("emailDesign", p)}
+              />
+            </>
           ) : tab === "Audio" ? (
             <AudioTab s={draft.audio} update={(p) => update("audio", p)} />
           ) : tab === "Apparence" ? (
@@ -214,6 +226,236 @@ function EmailTab({ s, update }: { s: Settings["email"]; update: (p: Partial<Set
         </Field>
       </Card>
     </>
+  );
+}
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChange(o.id)}
+          className={cn(
+            "flex-1 rounded-md px-2 py-1.5 text-xs",
+            value === o.id ? "bg-fg text-bg" : "bg-hover text-muted hover:text-fg",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value);
+  const [prev, setPrev] = useState(value);
+  if (prev !== value) {
+    setPrev(value);
+    setText(value);
+  }
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="border-line size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
+          aria-label={label}
+        />
+        <Input
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (/^#[0-9a-f]{6}$/i.test(e.target.value)) onChange(e.target.value.toLowerCase());
+          }}
+          className="font-mono"
+          maxLength={7}
+        />
+      </div>
+    </Field>
+  );
+}
+
+const SAMPLE_COVER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="#f2b544"/><stop offset="1" stop-color="#a24bd1"/></linearGradient></defs><rect width="160" height="160" fill="url(#g)"/></svg>',
+  );
+
+function EmailDesignCard({
+  d,
+  email,
+  senderFallback,
+  update,
+}: {
+  d: Settings["emailDesign"];
+  email: Settings["email"];
+  senderFallback: string;
+  update: (p: Partial<Settings["emailDesign"]>) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const logoUrl = useSignedUrl(d.logoPath);
+  const html = renderProjectEmail({
+    projectName: "Nom du projet",
+    trackCount: 3,
+    trackTitles: ["Prod 1 — 140 BPM", "Prod 2 — 96 BPM", "Prod 3 — 120 BPM"],
+    message: email.defaultMessage,
+    signature: email.signature,
+    senderName: email.fromName || senderFallback,
+    listenUrl: "#",
+    design: d,
+    coverUrl: SAMPLE_COVER,
+    logoUrl,
+  }).html;
+
+  const pickLogo = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choisis une image (PNG, JPG, SVG…)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const path = await uploadLogo(file);
+      const old = d.logoPath;
+      update({ logoPath: path });
+      if (old) void removeFiles([old]);
+    } catch (e) {
+      toast.error("Logo non importé", { description: errorMessage(e) });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <Card title="Design de l'e-mail" description="Personnalise l'apparence des e-mails envoyés avec tes liens.">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="space-y-4">
+          <Field label="Logo / bannière" hint="Affiché en haut de l'e-mail. PNG transparent conseillé.">
+            <div className="flex items-center gap-2">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="border-line h-9 max-w-28 rounded-md border object-contain p-1" />
+              ) : null}
+              <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                <ImagePlus className="size-3.5" />
+                {uploading ? "Import…" : d.logoPath ? "Remplacer" : "Ajouter un logo"}
+              </Button>
+              {d.logoPath ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    const old = d.logoPath;
+                    update({ logoPath: null });
+                    void removeFiles([old]);
+                  }}
+                  aria-label="Retirer le logo"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              ) : null}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => void pickLogo(e.target.files?.[0])}
+              />
+            </div>
+          </Field>
+          {d.logoPath ? (
+            <>
+              <Field label={`Largeur du logo — ${d.logoWidth} px`}>
+                <Slider
+                  label="Largeur du logo"
+                  value={d.logoWidth}
+                  min={40}
+                  max={300}
+                  step={10}
+                  onChange={(v) => update({ logoWidth: Math.round(v) })}
+                />
+              </Field>
+              <Field label="Position du logo">
+                <Segmented
+                  value={d.logoAlign}
+                  options={[
+                    { id: "left", label: "À gauche" },
+                    { id: "center", label: "Centré" },
+                  ]}
+                  onChange={(v) => update({ logoAlign: v })}
+                />
+              </Field>
+            </>
+          ) : null}
+          <Field label="Police">
+            <Segmented
+              value={d.font}
+              options={(Object.keys(EMAIL_FONTS) as EmailFont[]).map((id) => ({ id, label: EMAIL_FONTS[id].label }))}
+              onChange={(v) => update({ font: v })}
+            />
+          </Field>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
+            <ColorField label="Texte" value={d.textColor} onChange={(v) => update({ textColor: v })} />
+            <ColorField label="Lien / bouton" value={d.accentColor} onChange={(v) => update({ accentColor: v })} />
+            <ColorField label="Fond" value={d.background} onChange={(v) => update({ background: v })} />
+          </div>
+          <Field label="Lien d'écoute">
+            <Segmented
+              value={d.cta}
+              options={[
+                { id: "link", label: "Lien texte" },
+                { id: "button", label: "Bouton" },
+              ]}
+              onChange={(v) => update({ cta: v })}
+            />
+          </Field>
+          <Field label="Texte du lien">
+            <Input
+              value={d.ctaLabel}
+              onChange={(e) => update({ ctaLabel: e.target.value })}
+              placeholder={DEFAULT_EMAIL_DESIGN.ctaLabel}
+              maxLength={60}
+            />
+          </Field>
+          <label className="flex items-center justify-between gap-4">
+            <span>
+              <span className="block text-[13px]">Afficher la cover du projet</span>
+              <span className="text-faint block text-xs">
+                Les images augmentent un peu le risque d&apos;arriver en spam.
+              </span>
+            </span>
+            <Switch checked={d.showCover} onChange={(v) => update({ showCover: v })} label="Afficher la cover" />
+          </label>
+          <Button type="button" variant="ghost" onClick={() => update({ ...DEFAULT_EMAIL_DESIGN, logoPath: d.logoPath })}>
+            <RotateCcw className="size-3.5" /> Design par défaut
+          </Button>
+        </div>
+        <div>
+          <div className="text-muted mb-1.5 text-xs">Aperçu</div>
+          <iframe
+            title="Aperçu du design de l'e-mail"
+            srcDoc={`<body style="margin:0;padding:16px;background:#fff">${html}</body>`}
+            sandbox=""
+            className="border-line h-[520px] w-full rounded-xl border bg-white"
+          />
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Cover } from "@/components/ui/cover";
+import { Cover, useSignedUrl } from "@/components/ui/cover";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Input, Kbd, Label, Textarea } from "@/components/ui/input";
 import { DropdownMenu } from "@/components/ui/menu";
@@ -546,6 +546,9 @@ function EmailView({
   );
   const canSend = recipients.length > 0 && !invalid.length && subject.trim() && !sending;
 
+  const design = profile?.settings.emailDesign ?? null;
+  const logoUrl = useSignedUrl(preview ? design?.logoPath : null);
+  const coverUrl = useSignedUrl(preview && design?.showCover ? project.cover_path : null);
   const previewHtml = preview ? emailPreview() : "";
 
   function emailPreview() {
@@ -559,6 +562,9 @@ function EmailView({
       senderName: sender,
       listenUrl: share ? projectShareUrl(share.token) : "#",
       passwordProtected: share?.has_password,
+      design,
+      logoUrl,
+      coverUrl,
     }).html;
   }
 
