@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Check, CheckCircle2, ImagePlus, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ImagePlus, Palette, RotateCcw, Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,17 @@ const ACCENTS = [
   { id: "rose", color: "#f2798f" },
   { id: "mono", color: "#ececee" },
 ];
+
+/** The app's own palette (globals.css tokens) applied to the email. */
+function appEmailColors(accentId: string): Partial<Settings["emailDesign"]> {
+  return {
+    background: "#0b0b0c",
+    textColor: "#ececee",
+    accentColor: ACCENTS.find((a) => a.id === accentId)?.color ?? ACCENTS[0].color,
+    font: "modern",
+    cta: "button",
+  };
+}
 
 /** Local copy of settings with debounced autosave. */
 function useSettingsDraft() {
@@ -119,6 +130,7 @@ export default function SettingsPage() {
               <EmailDesignCard
                 d={draft.emailDesign}
                 email={draft.email}
+                accent={draft.appearance.accent}
                 senderFallback={profile.display_name || profile.email.split("@")[0] || "Moi"}
                 update={(p) => update("emailDesign", p)}
               />
@@ -297,11 +309,13 @@ const SAMPLE_COVER =
 function EmailDesignCard({
   d,
   email,
+  accent,
   senderFallback,
   update,
 }: {
   d: Settings["emailDesign"];
   email: Settings["email"];
+  accent: string;
   senderFallback: string;
   update: (p: Partial<Settings["emailDesign"]>) => void;
 }) {
@@ -441,9 +455,18 @@ function EmailDesignCard({
             </span>
             <Switch checked={d.showCover} onChange={(v) => update({ showCover: v })} label="Afficher la cover" />
           </label>
-          <Button type="button" variant="ghost" onClick={() => update({ ...DEFAULT_EMAIL_DESIGN, logoPath: d.logoPath })}>
-            <RotateCcw className="size-3.5" /> Design par défaut
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => update(appEmailColors(accent))}>
+              <Palette className="size-3.5" /> Couleurs de CREATE
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => update({ ...DEFAULT_EMAIL_DESIGN, logoPath: d.logoPath })}
+            >
+              <RotateCcw className="size-3.5" /> Design par défaut
+            </Button>
+          </div>
         </div>
         <div>
           <div className="text-muted mb-1.5 text-xs">Aperçu</div>

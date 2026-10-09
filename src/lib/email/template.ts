@@ -90,14 +90,14 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
       : "";
   const cta =
     d.cta === "button"
-      ? `<p style="margin:4px 0 14px;"><a href="${href}" style="display:inline-block;padding:11px 22px;border-radius:999px;background:${d.accentColor};color:${onColor(d.accentColor)};font-family:${font};font-size:14px;font-weight:bold;text-decoration:none;">${esc(d.ctaLabel)}</a></p>`
+      ? `<p style="margin:4px 0 14px;"><a href="${href}" style="display:inline-block;padding:11px 22px;border-radius:999px;background:${d.accentColor};color:${onColor(d.accentColor)};font-family:${font};font-size:14px;font-weight:bold;text-decoration:none;white-space:nowrap;">${esc(d.ctaLabel)}</a></p>`
       : `<p style="${p}"><a href="${href}" style="color:${d.accentColor};">${esc(d.ctaLabel)}</a></p>`;
 
   const body = [
     logo,
     paragraphs(i.message),
     cover,
-    `<p style="${p}"><b>${esc(i.projectName)}</b> (${count})${list ? `<br>${list}` : ""}</p>`,
+    `<p style="${p}"><b>${esc(i.projectName)}</b> (${count})${list ? `<br><span style="opacity:0.7;">${list}</span>` : ""}</p>`,
     cta,
     notes ? `<p style="${p}font-size:13px;opacity:0.7;">${esc(notes)}</p>` : "",
     paragraphs(i.signature ? `${i.signature}\n${i.senderName}` : i.senderName),
