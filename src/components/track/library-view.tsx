@@ -246,7 +246,12 @@ export function LibraryView({
           ))}
         </div>
       ) : layout === "folders" ? (
-        <FolderGrid tracks={visible} emptyState={empty} />
+        <FolderGrid
+          tracks={visible}
+          projects={projects}
+          grouped={!deferredQuery.trim() && !filterCount}
+          emptyState={empty}
+        />
       ) : (
         <TrackList tracks={visible} sort={sort} onSortChange={setSort} showProject={showProject} emptyState={empty} />
       )}

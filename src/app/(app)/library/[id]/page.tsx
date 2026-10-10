@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { Skeleton, Spinner } from "@/components/ui/spinner";
 import { deleteFolderFile, useTrackFolder } from "@/lib/data/track-folders";
+import { libraryProjectHref } from "@/components/track/folder-grid";
+import { useProjects } from "@/lib/data/library";
 import { deleteStem, useTrackDetail } from "@/lib/data/tracks";
 import { hasType } from "@/lib/dnd";
 import { usePlayer } from "@/lib/player/store";
@@ -72,6 +74,7 @@ function TrackFolder() {
   const { data, isLoading, error } = useTrackDetail(id);
   const prod = useTrackFolder(id, "prod");
   const session = useTrackFolder(id, "session");
+  const { data: projects = [] } = useProjects();
 
   if (error) return <p className="text-danger px-8 py-10 text-sm">Dossier introuvable : {error.message}</p>;
   if (isLoading || !data) {
@@ -84,6 +87,7 @@ function TrackFolder() {
   }
 
   const { track, stems } = data;
+  const project = projects.find((p) => p.id === track.project_id) ?? null;
   const go = (d: Dir | null) => router.push(d ? `/library/${id}?d=${d}` : `/library/${id}`);
 
   const entries: Record<Dir, Entry[]> = {
@@ -159,6 +163,14 @@ function TrackFolder() {
         <Link href="/library" className="hover:text-fg">
           Bibliothèque
         </Link>
+        {project ? (
+          <>
+            <ChevronRight className="text-faint size-3.5 shrink-0" />
+            <Link href={libraryProjectHref(project.id)} className="hover:text-fg max-w-48 truncate">
+              {project.name}
+            </Link>
+          </>
+        ) : null}
         <ChevronRight className="text-faint size-3.5 shrink-0" />
         {dir ? (
           <button onClick={() => go(null)} className="hover:text-fg max-w-60 truncate">
