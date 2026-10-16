@@ -216,7 +216,7 @@ export function useSends() {
       const { data, error } = await supabase()
         .from("email_sends")
         .select(
-          "id, track_id, project_id, project_share_id, track_title, recipient, subject, message, status, provider_id, error, created_at, share:project_shares(view_count, play_count, last_viewed_at, token, expires_at)",
+          "id, track_id, project_id, project_share_id, track_title, recipient, subject, message, options, status, provider_id, error, created_at, share:project_shares(view_count, play_count, last_viewed_at, token, expires_at)",
         )
         .order("created_at", { ascending: false })
         .limit(500);

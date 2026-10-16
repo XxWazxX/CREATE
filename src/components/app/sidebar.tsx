@@ -15,6 +15,7 @@ import {
   Settings,
   Trash2,
   Upload,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -38,6 +39,7 @@ export const NAV = [
   { href: "/projects", label: "Projets", icon: Disc3 },
   { href: "/favorites", label: "Favoris", icon: Heart },
   { href: "/recent", label: "Ajouts récents", icon: Clock },
+  { href: "/artists", label: "Artistes", icon: Users },
   { href: "/sent", label: "Envoyés", icon: Mail },
   { href: "/trash", label: "Corbeille", icon: Trash2 },
 ] as const;

@@ -127,11 +127,21 @@ export type EmailSend = {
   subject: string;
   message: string;
   html: string | null;
+  /** { kind, artist_name? } — artist_name is the address-book name at send time */
+  options?: { kind?: string; artist_name?: string | null } | null;
   status: "queued" | "sent" | "failed";
   provider_id: string | null;
   error: string | null;
   created_at: string;
   share?: Pick<ProjectShare, "view_count" | "play_count" | "last_viewed_at" | "token" | "expires_at"> | null;
+};
+
+/** Address-book entry (Artistes): one per email. */
+export type Artist = {
+  id: string;
+  artist_name: string;
+  email: string;
+  created_at: string;
 };
 
 export type Activity = {

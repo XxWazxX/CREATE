@@ -52,7 +52,8 @@ async function main() {
   await db.exec(grantAll + "grant execute on all functions in schema public to authenticated;");
   await db.exec(migration("0002_project_shares.sql"));
   await db.exec(grantAll);
-  check("migrations 0001 + 0002 applied", true);
+  await db.exec(migration("0003_artists.sql"));
+  check("migrations 0001 + 0002 + 0003 applied", true);
 
   await db.exec(`insert into auth.users (id, email) values ('${A}', 'a@x.com'), ('${B}', 'b@x.com')`);
   const profiles = await db.query<{ n: number }>("select count(*)::int n from public.profiles");
@@ -269,6 +270,37 @@ async function main() {
     left.rows[0].v === 0 && left.rows[0].s === 0 && left.rows[0].a === 0 && left.rows[0].e === 1,
     left.rows[0],
   );
+
+  // Artists: private address book, one entry per email and owner
+  const refused = (p: Promise<unknown>) =>
+    p.then(
+      () => false,
+      () => true,
+    );
+  await as(A, "insert into public.artists (artist_name, email) values ('Artiste A', 'a@label.com')");
+  check(
+    "artists: same email twice for one owner is refused",
+    await refused(as(A, "insert into public.artists (artist_name, email) values ('Autre', 'a@label.com')")),
+  );
+  check(
+    "artists: emails must be stored lower-cased",
+    await refused(as(A, "insert into public.artists (artist_name, email) values ('X', 'Up@Label.com')")),
+  );
+  check(
+    "artists: invalid email refused",
+    await refused(as(A, "insert into public.artists (artist_name, email) values ('X', 'pas-un-mail')")),
+  );
+  await as(B, "insert into public.artists (artist_name, email) values ('Artiste A', 'a@label.com')");
+  const seenByA = await as(A, "select count(*)::int n from public.artists");
+  const seenByB = await as(B, "select count(*)::int n from public.artists");
+  check("artists: each owner only sees their own (RLS)", seenByA.rows[0].n === 1 && seenByB.rows[0].n === 1);
+  await as(B, "update public.artists set artist_name = 'pirate'");
+  const untouched = await as(A, "select artist_name from public.artists");
+  check("artists: another owner can't edit mine", untouched.rows[0].artist_name === "Artiste A");
+  await db.exec("set role anon;");
+  const anonBlocked = await refused(db.query("select count(*) from public.artists"));
+  await db.exec("reset role;");
+  check("artists: anonymous visitors can't read the table", anonBlocked);
 
   console.log(failures ? `\n${failures} check(s) failed` : "\nAll schema checks passed");
   process.exit(failures ? 1 : 0);

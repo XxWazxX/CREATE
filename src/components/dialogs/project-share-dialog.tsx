@@ -26,7 +26,8 @@ import { Checkbox, Input, Kbd, Label, Textarea } from "@/components/ui/input";
 import { DropdownMenu } from "@/components/ui/menu";
 import { Spinner } from "@/components/ui/spinner";
 import { getQueryClient, qk } from "@/lib/data/client";
-import { useProfile, useProjects, useSends } from "@/lib/data/library";
+import { useArtists } from "@/lib/data/artists";
+import { useProfile, useProjects } from "@/lib/data/library";
 import {
   createProjectShare,
   deleteProjectShare,
@@ -42,6 +43,7 @@ import type { Project, ProjectShare } from "@/lib/types";
 import { confirm } from "@/lib/ui-store";
 import { shareDbError } from "@/lib/project-share-input";
 import { cn, errorMessage, relativeDate, shortDate } from "@/lib/utils";
+import { RecipientPicker } from "./recipient-picker";
 
 type View =
   | { name: "links" }
@@ -502,7 +504,8 @@ function CreatedView({ share, onEmail, onDone }: { share: ProjectShare; onEmail:
 // Email
 // ---------------------------------------------------------------------------
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Recipients per request: each one is a separate SMTP session on the server. */
+const SEND_BATCH = 5;
 
 function EmailView({
   project,
@@ -519,23 +522,19 @@ function EmailView({
 }) {
   const router = useRouter();
   const { data: profile } = useProfile();
-  const { data: sends = [] } = useSends();
+  const { data: artists = [] } = useArtists();
   const { data: tracks = [] } = useTracks();
   const usable = shares.filter((s) => !isExpired(s));
   const [shareId, setShareId] = useState<string | null>(initialShareId ?? usable[0]?.id ?? null);
-  const [to, setTo] = useState("");
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [pending, setPending] = useState("");
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [subject, setSubject] = useState(`Nouvelles prods — ${project.name}`);
   const [message, setMessage] = useState(() => profile?.settings.email.defaultMessage ?? "");
   const [preview, setPreview] = useState(false);
   const [sending, setSending] = useState(false);
 
   const share = usable.find((s) => s.id === shareId) ?? null;
-  const recipients = to
-    .split(/[,;\s]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-  const invalid = recipients.filter((r) => !EMAIL_RE.test(r));
-  const pastRecipients = useMemo(() => [...new Set(sends.map((s) => s.recipient))].slice(0, 50), [sends]);
   const titles = useMemo(
     () =>
       tracks
@@ -544,7 +543,8 @@ function EmailView({
         .map((t) => t.title),
     [tracks, project.id],
   );
-  const canSend = recipients.length > 0 && !invalid.length && subject.trim() && !sending;
+  const canSend = recipients.length > 0 && !pending.trim() && subject.trim() && !sending;
+  const nameOf = (email: string) => artists.find((a) => a.email === email)?.artist_name ?? null;
 
   const design = profile?.settings.emailDesign ?? null;
   const logoUrl = useSignedUrl(preview ? design?.logoPath : null);
@@ -571,13 +571,27 @@ function EmailView({
 
   const send = async () => {
     if (!canSend) return;
+    const list = recipients;
+    if (list.length > 1) {
+      const ok = await confirm({
+        title: `Envoyer à ${list.length} destinataires ?`,
+        body:
+          "Chacun reçoit son propre e-mail : les autres adresses ne sont jamais visibles." +
+          (list.length > 50 ? " Gmail limite l’envoi à environ 500 e-mails par jour." : ""),
+        confirmLabel: `Envoyer (${list.length})`,
+      });
+      if (!ok) return;
+    }
     setSending(true);
+    const sent: string[] = [];
+    const failed: { recipient: string; error?: string }[] = [];
+    let stopped: string | null = null;
     try {
       // No link yet: create a standard one (listen + MP3, no expiry).
       let target = share;
       if (!target) {
         target = await createProjectShare(project.id, {
-          label: recipients.length === 1 ? recipients[0] : "E-mail",
+          label: list.length === 1 ? (nameOf(list[0]) ?? list[0]) : "E-mail",
           allow_streaming: true,
           allow_mp3_download: true,
           allow_wav_download: false,
@@ -585,32 +599,64 @@ function EmailView({
           expires_at: null,
           password: null,
         });
+        setShareId(target.id);
       }
-      const res = await fetch("/api/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shareId: target.id, recipients, subject: subject.trim(), message }),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        results?: { recipient: string; ok: boolean; error?: string }[];
-      };
-      if (!res.ok) throw new Error(json.error ?? `Échec de l'envoi (${res.status})`);
-      const failed = json.results?.filter((r) => !r.ok) ?? [];
-      const okCount = (json.results?.length ?? 0) - failed.length;
-      toast.success(okCount === 1 ? `Envoyé à ${recipients[0]}` : `Envoyé à ${okCount} destinataires`, {
-        description: project.name,
-        action: { label: "Voir", onClick: () => router.push("/sent") },
-      });
-      if (failed.length)
-        toast.error(`Échec : ${failed.map((f) => f.recipient).join(", ")}`, { description: failed[0].error });
-      void getQueryClient().invalidateQueries({ queryKey: qk.sends });
-      onSent();
+      // Small batches, one after the other. A failed batch stops here: nothing already
+      // accepted by the mail provider is ever sent twice.
+      setProgress({ done: 0, total: list.length });
+      for (let i = 0; i < list.length; i += SEND_BATCH) {
+        const batch = list.slice(i, i + SEND_BATCH);
+        const res = await fetch("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shareId: target.id, recipients: batch, subject: subject.trim(), message }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          results?: { recipient: string; ok: boolean; error?: string }[];
+        };
+        if (!json.results) {
+          stopped = json.error ?? `Échec de l'envoi (${res.status})`;
+          break;
+        }
+        for (const r of json.results) {
+          if (r.ok) sent.push(r.recipient);
+          else failed.push(r);
+        }
+        setProgress({ done: Math.min(list.length, i + batch.length), total: list.length });
+      }
     } catch (e) {
-      toast.error("E-mail non envoyé", { description: errorMessage(e) });
+      stopped = errorMessage(e);
     } finally {
       setSending(false);
+      setProgress(null);
+      void getQueryClient().invalidateQueries({ queryKey: qk.sends });
     }
+
+    // Keep only the addresses that still need sending (failed or never attempted).
+    const sentSet = new Set(sent);
+    setRecipients(list.filter((r) => !sentSet.has(r)));
+    if (sent.length) {
+      toast.success(
+        sent.length === 1 ? `Envoyé à ${nameOf(sent[0]) ?? sent[0]}` : `Envoyé à ${sent.length} destinataires`,
+        {
+          description: project.name,
+          action: { label: "Voir", onClick: () => router.push("/sent") },
+        },
+      );
+    }
+    if (failed.length) {
+      toast.error(`Échec pour ${failed.length} destinataire${failed.length > 1 ? "s" : ""} (toujours dans la liste)`, {
+        description: `${failed.map((f) => f.recipient).join(", ")} — ${failed[0].error ?? ""}`,
+      });
+    }
+    if (stopped) {
+      const left = list.length - sent.length - failed.length;
+      toast.error("Envoi interrompu", {
+        description: left ? `${stopped} — ${left} non traité${left > 1 ? "s" : ""}, toujours dans la liste.` : stopped,
+      });
+    }
+    if (sent.length && !failed.length && !stopped) onSent();
   };
 
   return (
@@ -629,23 +675,19 @@ function EmailView({
     >
       <div className="space-y-3.5">
         <div>
-          <Label htmlFor="pe-to">Destinataire</Label>
-          <Input
-            id="pe-to"
-            data-autofocus
-            inputMode="email"
-            list="pe-recipients"
-            placeholder="artiste@exemple.com"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className={cn(invalid.length && to && "border-danger/60")}
+          <Label>Destinataires</Label>
+          <RecipientPicker
+            value={recipients}
+            onChange={setRecipients}
+            pending={pending}
+            onPendingChange={setPending}
+            autoFocus
           />
-          <datalist id="pe-recipients">
-            {pastRecipients.map((r) => (
-              <option key={r} value={r} />
-            ))}
-          </datalist>
-          {invalid.length && to ? <p className="text-danger mt-1 text-xs">Invalide : {invalid.join(", ")}</p> : null}
+          {pending.trim() ? (
+            <p className="text-faint mt-1 text-xs">
+              « {pending.trim()} » n’est pas une adresse complète : choisis un artiste ou corrige-la.
+            </p>
+          ) : null}
         </div>
         <div>
           <Label htmlFor="pe-subject">Objet</Label>
@@ -710,7 +752,12 @@ function EmailView({
               <Kbd>↵</Kbd>
             </span>
             <Button type="submit" variant="primary" disabled={!canSend} loading={sending}>
-              {!sending ? <Send /> : null} Envoyer
+              {!sending ? <Send /> : null}
+              {progress
+                ? `Envoi ${progress.done}/${progress.total}…`
+                : recipients.length > 1
+                  ? `Envoyer (${recipients.length})`
+                  : "Envoyer"}
             </Button>
           </div>
         </div>

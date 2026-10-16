@@ -26,7 +26,17 @@ function dayLabel(iso: string) {
   });
 }
 
-function Status({ send }: { send: EmailSend }) {
+/** Address-book name at send time, else the address' local part. */
+function who(s: EmailSend) {
+  return s.options?.artist_name || s.recipient.split("@")[0];
+}
+
+/**
+ * "Envoyé" means accepted by the mail provider — never "delivered". Link opens are
+ * only shown when that link went to this one recipient (otherwise they can't be
+ * attributed to anyone in particular).
+ */
+function Status({ send, attributable }: { send: EmailSend; attributable: boolean }) {
   if (send.status === "failed")
     return (
       <span className="text-danger inline-flex items-center gap-1 text-xs" title={send.error ?? ""}>
@@ -39,7 +49,7 @@ function Status({ send }: { send: EmailSend }) {
         <Spinner className="size-3" /> Envoi
       </span>
     );
-  if (send.share && send.share.view_count > 0)
+  if (attributable && send.share && send.share.view_count > 0)
     return (
       <span
         className="text-ok inline-flex items-center gap-1 text-xs"
@@ -68,6 +78,7 @@ export default function SentPage() {
       (x) =>
         !s ||
         x.recipient.toLowerCase().includes(s) ||
+        (x.options?.artist_name ?? "").toLowerCase().includes(s) ||
         x.track_title.toLowerCase().includes(s) ||
         x.subject.toLowerCase().includes(s),
     );
@@ -79,14 +90,24 @@ export default function SentPage() {
     return [...map.entries()];
   }, [sends, q]);
 
-  const opened = sends?.filter((s) => (s.share?.view_count ?? 0) > 0).length ?? 0;
+  // How many emails used each link: opens only count for a link sent to one person.
+  const perShare = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of sends ?? [])
+      if (s.project_share_id) m.set(s.project_share_id, (m.get(s.project_share_id) ?? 0) + 1);
+    return m;
+  }, [sends]);
+  const attributable = (s: EmailSend) => !!s.project_share_id && perShare.get(s.project_share_id) === 1;
+  const sentCount = sends?.filter((s) => s.status === "sent").length ?? 0;
 
   return (
     <div className="pb-10">
       <PageHeader
         title="Envoyés"
         subtitle={
-          sends?.length ? `${sends.length} e-mails · ${opened} ouverts` : "Les projets que tu as envoyés par e-mail"
+          sends?.length
+            ? `${sends.length} e-mail${sends.length > 1 ? "s" : ""} · ${sentCount} envoyé${sentCount > 1 ? "s" : ""}`
+            : "Les projets que tu as envoyés par e-mail"
         }
         actions={
           sends?.length ? (
@@ -95,7 +116,7 @@ export default function SentPage() {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Destinataire ou projet"
+                placeholder="Artiste, adresse ou projet"
                 className="pl-9"
               />
             </div>
@@ -124,11 +145,11 @@ export default function SentPage() {
                   className="hover:bg-hover/60 flex cursor-pointer items-center gap-4 px-4 py-3 md:px-8"
                 >
                   <div className="bg-raised text-muted grid size-9 shrink-0 place-items-center rounded-full text-[13px] font-medium uppercase">
-                    {s.recipient[0]}
+                    {who(s)[0]}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13.5px]">
-                      <span className="font-medium">{s.recipient.split("@")[0]}</span>
+                      <span className="font-medium">{who(s)}</span>
                       <span className="text-faint"> — </span>
                       {s.project_id ? (
                         <Link
@@ -146,7 +167,7 @@ export default function SentPage() {
                       {s.recipient} · {s.subject}
                     </p>
                   </div>
-                  <Status send={s} />
+                  <Status send={s} attributable={attributable(s)} />
                   <span className="text-faint hidden w-24 text-right text-xs sm:block">
                     {new Date(s.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
@@ -159,6 +180,7 @@ export default function SentPage() {
       {viewing ? (
         <SentViewer
           send={viewing}
+          attributable={attributable(viewing)}
           onClose={() => setViewing(null)}
           onResend={() => {
             setViewing(null);
@@ -170,7 +192,17 @@ export default function SentPage() {
   );
 }
 
-function SentViewer({ send, onClose, onResend }: { send: EmailSend; onClose: () => void; onResend: () => void }) {
+function SentViewer({
+  send,
+  attributable,
+  onClose,
+  onResend,
+}: {
+  send: EmailSend;
+  attributable: boolean;
+  onClose: () => void;
+  onResend: () => void;
+}) {
   const [html, setHtml] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
@@ -185,11 +217,11 @@ function SentViewer({ send, onClose, onResend }: { send: EmailSend; onClose: () 
       onOpenChange={(o) => !o && onClose()}
       wide
       title={send.subject}
-      description={`À ${send.recipient} · ${new Date(send.created_at).toLocaleString("fr-FR")}`}
+      description={`À ${send.options?.artist_name ? `${send.options.artist_name} <${send.recipient}>` : send.recipient} · ${new Date(send.created_at).toLocaleString("fr-FR")}`}
       footer={
         <>
           <span className="mr-auto">
-            <Status send={send} />
+            <Status send={send} attributable={attributable} />
           </span>
           {send.project_id ? (
             <button onClick={onResend} className="text-muted hover:text-fg text-[13px]">

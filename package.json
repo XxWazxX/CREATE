@@ -12,7 +12,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\"",
     "test:schema": "tsx scripts/test-schema.ts",
     "test:audio": "tsx --tsconfig tsconfig.json scripts/test-analysis.ts",
-    "test": "npm run test:schema && npm run test:audio && npm run test:filename",
+    "test": "npm run test:schema && npm run test:audio && npm run test:filename && npm run test:artists",
+    "test:artists": "tsx --tsconfig tsconfig.json scripts/test-artists.ts",
     "test:filename": "tsx --tsconfig tsconfig.json scripts/test-filename.ts",
     "cf:build": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
@@ -46,6 +47,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "tus-js-client": "^4.3.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },

@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: parsed.error.issues.map((i) => i.message).join(", ") }, { status: 400 });
   }
-  const { shareId, recipients, subject, message } = parsed.data;
+  const { shareId, subject, message } = parsed.data;
+  // One email per distinct address (case-insensitive).
+  const recipients = [...new Set(parsed.data.recipients.map((r) => r.trim().toLowerCase()))];
 
   // RLS: the link and the project must belong to the signed-in owner.
   const { data: share } = await supabase
@@ -73,6 +75,11 @@ export async function POST(req: Request) {
   const base = appUrl(req);
   const titles = (tracks ?? []).map((t) => t.title as string);
 
+  // Names come from the owner's address book (RLS), never from the request.
+  // Missing table (migration not applied yet) just means no names.
+  const { data: known } = await supabase.from("artists").select("artist_name, email").in("email", recipients);
+  const artistName = new Map((known ?? []).map((a) => [a.email as string, a.artist_name as string]));
+
   const { html, text } = renderProjectEmail({
     projectName: project.name,
     trackCount: titles.length,
@@ -103,7 +110,7 @@ export async function POST(req: Request) {
         subject,
         message,
         html,
-        options: { kind: "project" },
+        options: { kind: "project", artist_name: artistName.get(recipient) ?? null },
         status: "queued",
       })
       .select("id")
