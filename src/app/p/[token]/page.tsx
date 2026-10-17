@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Logo } from "@/components/app/sidebar";
 import { publicProjectTracks, resolveProjectShare, shareHit, signedUrl } from "@/lib/project-share-server";
+import { instagramHandle } from "@/lib/email/template";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { DEFAULT_SETTINGS, type Settings } from "@/lib/types";
 import { PasswordGate } from "./password-gate";
-import { ProjectPlayer } from "./project-player";
+import { ProjectPlayer, type Brand } from "./project-player";
 
 export const metadata: Metadata = {
   title: "Projet partagé",
@@ -47,15 +50,17 @@ async function Content({ params }: { params: PageProps<"/p/[token]">["params"] }
   if (r.status === "locked") return <PasswordGate token={token} projectName={r.project.name} />;
 
   const { share, project } = r;
-  const [tracks, coverUrl] = await Promise.all([
+  const [tracks, coverUrl, brand] = await Promise.all([
     publicProjectTracks(share),
     project.cover_path ? signedUrl(project.cover_path, 60 * 60 * 6) : Promise.resolve(null),
+    ownerBrand(share.id),
   ]);
   await shareHit(share.id, "view").catch(() => undefined);
 
   return (
     <ProjectPlayer
       token={token}
+      brand={brand}
       project={{ id: project.id, name: project.name, coverUrl }}
       tracks={tracks}
       permissions={{
@@ -66,4 +71,37 @@ async function Content({ params }: { params: PageProps<"/p/[token]">["params"] }
       }}
     />
   );
+}
+
+/** Name, default message, logo and Instagram of the link's owner (public, non-sensitive settings only). */
+async function ownerBrand(shareId: string): Promise<Brand> {
+  const fallback: Brand = {
+    name: "WAZ",
+    message: DEFAULT_SETTINGS.email.defaultMessage,
+    logoUrl: null,
+    instagram: null,
+    heroUrl: "/brand/studio.jpg",
+  };
+  try {
+    const admin = createAdminClient();
+    const { data: share } = await admin.from("project_shares").select("user_id").eq("id", shareId).single();
+    if (!share) return fallback;
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name, settings")
+      .eq("id", share.user_id)
+      .maybeSingle();
+    const settings = (profile?.settings as Settings | null) ?? null;
+    const email = { ...DEFAULT_SETTINGS.email, ...(settings?.email ?? {}) };
+    const logoPath = settings?.emailDesign?.logoPath ?? null;
+    return {
+      name: email.fromName || profile?.display_name || fallback.name,
+      message: email.defaultMessage,
+      logoUrl: logoPath ? await signedUrl(logoPath, 60 * 60 * 6) : null,
+      instagram: instagramHandle(email.instagram),
+      heroUrl: fallback.heroUrl,
+    };
+  } catch {
+    return fallback;
+  }
 }

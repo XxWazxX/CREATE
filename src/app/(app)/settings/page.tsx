@@ -356,6 +356,7 @@ function EmailDesignCard({
     coverUrl: SAMPLE_COVER,
     logoUrl,
     tracks: SAMPLE_TRACKS,
+    heroUrl: "/brand/studio.jpg",
   }).html;
   const studio = d.layout === "studio";
 

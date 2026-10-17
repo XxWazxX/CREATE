@@ -74,6 +74,8 @@ export type ProjectEmailInput = {
   logoUrl?: string | null;
   /** Open-tracking pixel (1×1, transparent) — only in the copy actually sent. */
   trackingPixelUrl?: string | null;
+  /** Wide brand photo shown under the message (Studio layout). */
+  heroUrl?: string | null;
   /** Prods with their details and per-prod links (Studio layout). */
   tracks?: EmailTrack[];
 };
@@ -198,6 +200,7 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
         listenUrl: i.listenUrl,
         projectName: i.projectName,
         coverUrl: i.coverUrl ?? null,
+        heroUrl: i.heroUrl ?? null,
         // The artwork is part of the Studio layout (the toggle only affects the Simple one).
         showCover: true,
         logoUrl: d.logoPath ? (i.logoUrl ?? null) : null,

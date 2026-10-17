@@ -114,6 +114,7 @@ export async function POST(req: Request) {
       tracks: emailTracks(listenUrl),
       design,
       coverUrl: projectCover,
+      heroUrl: `${base}/brand/studio.jpg`,
       logoUrl: design?.logoPath ? `${base}/api/p/${share.token}/logo` : null,
       passwordProtected: !!share.password_hash,
       expiresLabel: share.expires_at

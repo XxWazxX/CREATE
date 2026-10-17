@@ -14,22 +14,31 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Logo } from "@/components/app/sidebar";
 import { generatedArt } from "@/components/ui/cover";
 import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
-import { PlayingBars } from "@/components/ui/misc";
 import { Slider, TooltipProvider } from "@/components/ui/slider";
 import { Waveform } from "@/components/ui/waveform";
 import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
-import { keyLabel, STEM_LABELS, type StemKind } from "@/lib/music";
+import { keyText } from "@/lib/email/studio-template";
+import { STEM_LABELS, type StemKind } from "@/lib/music";
 import { cn, formatBpm, formatDuration } from "@/lib/utils";
 import type { PublicTrack } from "@/lib/project-share-server";
 
 type Permissions = { streaming: boolean; mp3: boolean; wav: boolean; stems: boolean };
 
+/** Owner branding shown on the page (same as the Studio email). */
+export type Brand = {
+  name: string;
+  message: string;
+  logoUrl: string | null;
+  instagram: string | null;
+  heroUrl: string;
+};
+
 type Props = {
   token: string;
+  brand: Brand;
   project: { id: string; name: string; coverUrl: string | null };
   tracks: PublicTrack[];
   permissions: Permissions;
@@ -47,10 +56,10 @@ function Art({ url, seed, className }: { url: string | null; seed: string; class
 }
 
 function meta(t: PublicTrack) {
-  return [t.bpm ? `${formatBpm(t.bpm)} BPM` : null, keyLabel(t.key) || null, t.genre].filter(Boolean).join(" · ");
+  return [t.bpm ? `${formatBpm(t.bpm)} BPM` : null, keyText(t.key)].filter(Boolean).join(" • ");
 }
 
-export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
+export function ProjectPlayer({ token, brand, project, tracks, permissions }: Props) {
   const audio = useRef<HTMLAudioElement>(null);
   const counted = useRef(new Set<string>());
   // Track currently loaded in <audio> (events fire after the state update).
@@ -222,198 +231,259 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
   ];
 
   const total = tracks.reduce((s, t) => s + (t.duration ?? 0), 0);
+  const message = brand.message.trim();
 
   return (
     <TooltipProvider>
-      <div className={cn("bg-bg min-h-dvh", current && "pb-40 md:pb-32")}>
-        {/* Header */}
-        <header className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 pt-10 pb-8 text-center sm:flex-row sm:items-end sm:text-left md:px-8 md:pt-16">
-          <Art
-            url={project.coverUrl}
-            seed={project.id}
-            className="size-40 rounded-2xl shadow-2xl shadow-black/50 md:size-52"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-faint text-[11px] font-medium tracking-[0.2em] uppercase">Projet partagé</p>
-            <h1 className="mt-1 truncate text-3xl font-semibold tracking-tight md:text-5xl">{project.name}</h1>
-            <p className="text-muted mt-2 text-sm">
-              {tracks.length} production{tracks.length > 1 ? "s" : ""}
-              {total ? ` · ${Math.round(total / 60)} min` : ""}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              {permissions.streaming && tracks.some((t) => t.streamUrl) ? (
-                <button
-                  onClick={toggle}
-                  className="bg-accent text-accent-fg inline-flex h-10 items-center gap-2 rounded-full px-5 text-sm font-medium hover:brightness-110"
-                >
-                  {playing ? (
-                    <Pause className="size-4" fill="currentColor" />
-                  ) : (
-                    <Play className="size-4" fill="currentColor" />
-                  )}
-                  {playing ? "Pause" : "Tout écouter"}
-                </button>
-              ) : null}
-              {allDownloads.length === 1 ? (
-                <button
-                  onClick={() => {
-                    const only = allDownloads[0];
-                    if (!only.type || only.type === "item") only.onSelect();
-                  }}
-                  className="border-line-strong hover:bg-hover inline-flex h-10 items-center gap-2 rounded-full border px-5 text-sm font-medium"
-                >
-                  <Download className="size-4" /> Tout télécharger
-                </button>
-              ) : allDownloads.length > 1 ? (
-                <DropdownMenu
-                  align="start"
-                  entries={allDownloads}
-                  trigger={
-                    <button className="border-line-strong hover:bg-hover inline-flex h-10 items-center gap-2 rounded-full border px-5 text-sm font-medium">
-                      <Download className="size-4" /> Tout télécharger <ChevronDown className="size-3.5" />
-                    </button>
-                  }
-                />
-              ) : null}
+      <div className={cn("min-h-dvh bg-[#0b0b0c] px-3 py-6 md:py-12", current && "pb-44 md:pb-36")}>
+        <main className="mx-auto max-w-[760px] rounded-2xl bg-[#141416] px-4 pt-10 pb-8 shadow-2xl shadow-black/60 md:px-10 md:pt-14">
+          {/* Logo */}
+          <header className="flex flex-col items-center text-center">
+            {brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={brand.logoUrl}
+                alt={brand.name}
+                className="h-auto max-h-20 w-auto max-w-[220px] object-contain"
+              />
+            ) : (
+              <>
+                <p className="pl-[0.45em] text-2xl font-light tracking-[0.45em] text-white uppercase md:text-3xl">
+                  {brand.name}
+                </p>
+                <div className="mt-3 flex items-center gap-1" aria-hidden>
+                  {[6, 12, 18, 24, 14, 20, 10, 16, 8].map((h, i) => (
+                    <span key={i} className="w-0.5 rounded-full bg-white" style={{ height: h }} />
+                  ))}
+                </div>
+              </>
+            )}
+          </header>
+
+          {/* Message */}
+          {message ? (
+            <div className="mx-auto mt-8 max-w-xl space-y-3 text-[15px] leading-relaxed text-white md:text-[17px]">
+              {message.split(/\n{2,}/).map((p, i) => (
+                <p key={i} className="whitespace-pre-line">
+                  {p}
+                </p>
+              ))}
             </div>
-          </div>
-        </header>
-
-        {!permissions.streaming ? (
-          <p className="text-muted mx-auto max-w-4xl px-4 pb-4 text-[13px] md:px-8">
-            L’écoute en ligne est désactivée pour ce lien.
-          </p>
-        ) : null}
-
-        {/* Track list */}
-        <ol className="divide-line border-line mx-auto max-w-4xl divide-y border-y md:rounded-2xl md:border">
-          {tracks.length === 0 ? (
-            <li className="text-muted px-4 py-10 text-center text-sm">Ce projet est vide pour l’instant.</li>
           ) : null}
-          {tracks.map((t, i) => {
-            const isCurrent = index === i;
-            const menu = trackMenu(t);
-            return (
-              <li key={t.id} id={`track-${t.id}`} className={cn("group", isCurrent && "bg-hover/50")}>
-                <div
-                  onClick={() => (t.streamUrl ? (isCurrent ? toggle() : start(i)) : undefined)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 md:px-4",
-                    t.streamUrl && "hover:bg-hover/60 cursor-pointer",
-                  )}
-                >
-                  <span className="relative grid w-7 shrink-0 place-items-center">
-                    {isCurrent && playing ? (
-                      <PlayingBars />
-                    ) : (
-                      <span
-                        className={cn(
-                          "tabular text-faint font-mono text-xs",
-                          t.streamUrl && "group-hover:invisible",
-                          isCurrent && "text-accent",
-                        )}
-                      >
-                        {String(t.number).padStart(2, "0")}
-                      </span>
-                    )}
-                    {t.streamUrl && !(isCurrent && playing) ? (
-                      <Play className="text-fg invisible absolute size-4 group-hover:visible" fill="currentColor" />
-                    ) : null}
-                  </span>
-                  <Art url={t.coverUrl} seed={t.id} className="size-10 rounded-md" />
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("truncate text-[14px] font-medium", isCurrent && "text-accent")}>{t.title}</p>
-                    <p className="text-muted truncate text-xs">{meta(t) || " "}</p>
-                  </div>
-                  {t.stems.length ? (
+
+          {/* Main action */}
+          <div className="mt-8 flex flex-col items-center gap-3">
+            {permissions.streaming && tracks.some((t) => t.streamUrl) ? (
+              <button
+                onClick={toggle}
+                className="inline-flex h-14 w-full max-w-sm items-center justify-center gap-3 rounded-xl bg-white text-[13px] font-bold tracking-[0.22em] text-[#0b0b0c] uppercase transition hover:bg-white/90"
+              >
+                {playing ? (
+                  <Pause className="size-4" fill="currentColor" />
+                ) : (
+                  <Play className="size-4" fill="currentColor" />
+                )}
+                {playing ? "Pause" : "Écouter les prods"}
+              </button>
+            ) : (
+              <p className="text-muted text-[13px]">L’écoute en ligne est désactivée pour ce lien.</p>
+            )}
+            <p className="text-[12px] text-[#9b9ba3]">Lien sécurisé • Accès privé • Écoute en haute qualité</p>
+            {allDownloads.length === 1 ? (
+              <button
+                onClick={() => {
+                  const only = allDownloads[0];
+                  if (!only.type || only.type === "item") only.onSelect();
+                }}
+                className="inline-flex items-center gap-1.5 text-[12px] text-[#9b9ba3] hover:text-white"
+              >
+                <Download className="size-3.5" /> Tout télécharger
+              </button>
+            ) : allDownloads.length > 1 ? (
+              <DropdownMenu
+                align="center"
+                entries={allDownloads}
+                trigger={
+                  <button className="inline-flex items-center gap-1.5 text-[12px] text-[#9b9ba3] hover:text-white">
+                    <Download className="size-3.5" /> Tout télécharger <ChevronDown className="size-3" />
+                  </button>
+                }
+              />
+            ) : null}
+          </div>
+
+          {/* Studio photo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={brand.heroUrl} alt="" className="mt-8 aspect-[860/272] w-full rounded-xl object-cover" />
+
+          {/* Prods */}
+          <p className="mt-8 mb-3 text-[11px] tracking-[0.2em] text-[#6b6b73] uppercase">
+            {project.name} · {tracks.length} prod{tracks.length > 1 ? "s" : ""}
+            {total ? ` · ${Math.round(total / 60)} min` : ""}
+          </p>
+          <ol className="divide-y divide-[#26262a] overflow-hidden rounded-xl border border-[#26262a]">
+            {tracks.length === 0 ? (
+              <li className="px-4 py-10 text-center text-sm text-[#9b9ba3]">Ce projet est vide pour l’instant.</li>
+            ) : null}
+            {tracks.map((t, i) => {
+              const isCurrent = index === i;
+              const menu = trackMenu(t);
+              return (
+                <li key={t.id} id={`track-${t.id}`} className={cn(isCurrent && "bg-white/[0.03]")}>
+                  <div className="flex items-center gap-3 px-3 py-3 md:gap-4 md:px-4">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenStems(openStems === t.id ? null : t.id);
-                      }}
-                      className="text-faint hover:text-fg hidden items-center gap-1 rounded-md px-2 py-1 text-xs sm:inline-flex"
+                      onClick={() => (t.streamUrl ? (isCurrent ? toggle() : start(i)) : undefined)}
+                      className="shrink-0"
+                      aria-label={`Écouter ${t.title}`}
+                      disabled={!t.streamUrl}
                     >
-                      <Layers className="size-3.5" /> {t.stems.length} stems
+                      <Art url={t.coverUrl ?? project.coverUrl} seed={t.id} className="size-12 rounded-md md:size-14" />
+                    </button>
+                    <button
+                      onClick={() => (t.streamUrl ? (isCurrent ? toggle() : start(i)) : undefined)}
+                      className="min-w-0 flex-1 text-left md:w-44 md:flex-none"
+                      disabled={!t.streamUrl}
+                    >
+                      <p className="truncate text-[13px] font-semibold tracking-[0.14em] text-white uppercase">
+                        {t.title}
+                      </p>
+                      <p className="mt-1.5 truncate text-[11px] tracking-[0.14em] text-[#9b9ba3] uppercase">
+                        {meta(t) || " "}
+                      </p>
+                    </button>
+                    <div className="hidden min-w-0 flex-1 md:block">
+                      <Waveform
+                        peaks={t.peaks}
+                        duration={isCurrent ? duration || t.duration : t.duration}
+                        time={isCurrent ? time : 0}
+                        getTime={isCurrent ? () => audio.current?.currentTime ?? 0 : undefined}
+                        animate={isCurrent && playing}
+                        onSeek={(s) => {
+                          if (!t.streamUrl) return;
+                          if (!isCurrent) return start(i);
+                          if (audio.current) audio.current.currentTime = s;
+                          setTime(s);
+                        }}
+                        height={30}
+                        className="w-full"
+                      />
+                    </div>
+                    <span className="w-10 shrink-0 text-right font-mono text-[12px] text-[#9b9ba3] tabular-nums">
+                      {formatDuration(t.duration)}
+                    </span>
+                    <button
+                      onClick={() => (isCurrent ? toggle() : start(i))}
+                      disabled={!t.streamUrl}
+                      className={cn(
+                        "grid size-10 shrink-0 place-items-center rounded-full border-2 border-white text-white transition disabled:opacity-30",
+                        isCurrent && playing ? "bg-white text-[#0b0b0c]" : "hover:bg-white/10",
+                      )}
+                      aria-label={isCurrent && playing ? "Pause" : `Écouter ${t.title}`}
+                    >
+                      {isCurrent && playing ? (
+                        <Pause className="size-4" fill="currentColor" />
+                      ) : (
+                        <Play className="size-4 translate-x-px" fill="currentColor" />
+                      )}
+                    </button>
+                    {menu.length ? (
+                      <div onClick={(e) => e.stopPropagation()} className="-ml-1 shrink-0">
+                        <DropdownMenu
+                          entries={menu}
+                          trigger={
+                            <button
+                              className="grid size-8 place-items-center rounded-md text-[#6b6b73] hover:bg-white/10 hover:text-white"
+                              aria-label={`Télécharger ${t.title}`}
+                            >
+                              <Download className="size-4" />
+                            </button>
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  {t.stems.length && (openStems === t.id || (isCurrent && openStems === null)) ? (
+                    <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 md:px-4 md:pl-[88px]">
+                      <span className="text-[11px] tracking-wider text-[#6b6b73] uppercase">Stems</span>
+                      {t.stems.map((s) => (
+                        <span
+                          key={s.id}
+                          className="rounded-full border border-[#2b2b31] px-2 py-0.5 text-[11px] text-[#9b9ba3]"
+                          title={s.name}
+                        >
+                          {STEM_LABELS[s.kind as StemKind] ?? s.name}
+                        </span>
+                      ))}
+                      {permissions.stems ? (
+                        <button
+                          onClick={() =>
+                            zip("stems", `${String(t.number).padStart(2, "0")} - ${t.title} - Stems.zip`, t.id)
+                          }
+                          className="ml-1 inline-flex items-center gap-1 text-xs text-white hover:underline"
+                        >
+                          <Download className="size-3" /> Télécharger les stems
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : t.stems.length ? (
+                    <button
+                      onClick={() => setOpenStems(t.id)}
+                      className="mb-2 ml-3 inline-flex items-center gap-1 text-[11px] text-[#6b6b73] hover:text-white md:ml-[88px]"
+                    >
+                      <Layers className="size-3" /> {t.stems.length} stems
                     </button>
                   ) : null}
-                  <span className="tabular text-faint w-10 text-right font-mono text-xs">
-                    {formatDuration(t.duration)}
-                  </span>
-                  <div onClick={(e) => e.stopPropagation()} className="w-8">
-                    {menu.length ? (
-                      <DropdownMenu
-                        entries={menu}
-                        trigger={
-                          <button
-                            className="text-faint hover:text-fg hover:bg-active grid size-8 place-items-center rounded-md"
-                            aria-label={`Télécharger ${t.title}`}
-                          >
-                            <Download className="size-4" />
-                          </button>
-                        }
-                      />
-                    ) : null}
-                  </div>
-                </div>
-                {openStems === t.id || (isCurrent && t.stems.length && openStems === null) ? (
-                  <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 pl-[88px] md:px-4 md:pl-[92px]">
-                    <span className="text-faint text-[11px] tracking-wider uppercase">Stems</span>
-                    {t.stems.map((s) => (
-                      <span
-                        key={s.id}
-                        className="border-line-strong text-muted rounded-full border px-2 py-0.5 text-[11px]"
-                        title={s.name}
-                      >
-                        {STEM_LABELS[s.kind as StemKind] ?? s.name}
-                      </span>
-                    ))}
-                    {permissions.stems ? (
-                      <button
-                        onClick={() =>
-                          zip("stems", `${String(t.number).padStart(2, "0")} - ${t.title} - Stems.zip`, t.id)
-                        }
-                        className="text-accent ml-1 inline-flex items-center gap-1 text-xs hover:underline"
-                      >
-                        <Download className="size-3" /> Télécharger les stems
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
+                </li>
+              );
+            })}
+          </ol>
+
+          {/* Footer */}
+          <div className="mt-8 border-t border-[#26262a] pt-8 text-center text-[14px] leading-relaxed text-[#9b9ba3]">
+            <p>Merci pour ton écoute et ton retour.</p>
+            <p>À bientôt.</p>
+            {brand.instagram ? (
+              <a
+                href={`https://www.instagram.com/${brand.instagram}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block underline hover:text-white"
+              >
+                Instagram · @{brand.instagram}
+              </a>
+            ) : null}
+          </div>
+        </main>
+
+        <p className="mx-auto mt-6 max-w-md px-4 text-center text-[11px] leading-relaxed text-[#6b6b73]">
+          {permissions.streaming
+            ? "Pour informer l’auteur, cette page mesure de façon anonyme les morceaux lancés et la durée écoutée. Aucune donnée publicitaire, aucune empreinte de ton appareil."
+            : null}
+        </p>
+        <p className="mt-3 flex items-center justify-center gap-2 text-[10px] tracking-[0.2em] text-[#4a4a52]">
+          {" "}
+          LIEN PRIVÉ · CREATE
+        </p>
 
         {zipping ? (
-          <div className="border-line-strong bg-raised animate-up fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-[13px] shadow-xl">
+          <div className="animate-up fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-[#2b2b31] bg-[#151518] px-4 py-2 text-[13px] text-white shadow-xl">
             Préparation de « {zipping.label} »{zipping.total ? ` — ${zipping.done}/${zipping.total} fichiers` : "…"}
           </div>
         ) : null}
 
-        <footer className="text-faint mx-auto mt-10 flex max-w-4xl items-center justify-center gap-2 px-4 pb-10 text-[11px] tracking-[0.2em]">
-          <Logo className="size-3.5" /> LIEN PRIVÉ · CREATE
-        </footer>
-        {permissions.streaming ? (
-          <p className="text-faint mx-auto -mt-6 max-w-md px-4 pb-10 text-center text-[11px] leading-relaxed">
-            Pour informer l’auteur, cette page mesure de façon anonyme les morceaux lancés et la durée écoutée. Aucune
-            donnée publicitaire, aucune empreinte de ton appareil.
-          </p>
-        ) : null}
-
         {/* Persistent player */}
         {current ? (
-          <div className="border-line bg-panel/95 animate-up fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur">
-            <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:gap-5">
-              <div className="flex min-w-0 items-center gap-3 md:w-60">
-                <Art url={current.coverUrl} seed={current.id} className="size-11 rounded-md" />
+          <div className="animate-up fixed inset-x-0 bottom-0 z-40 border-t border-[#26262a] bg-[#101012]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+            <div className="mx-auto flex max-w-[760px] flex-col gap-2 px-4 py-3 md:flex-row md:items-center md:gap-5">
+              <div className="flex min-w-0 items-center gap-3 md:w-56">
+                <Art url={current.coverUrl ?? project.coverUrl} seed={current.id} className="size-11 rounded-md" />
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium">
-                    <span className="text-faint mr-1.5 font-mono text-[11px]">
-                      {String(current.number).padStart(2, "0")}
-                    </span>
+                  <p className="truncate text-[12px] font-semibold tracking-[0.12em] text-white uppercase">
                     {current.title}
                   </p>
-                  <p className="text-muted truncate text-xs">{meta(current) || " "}</p>
+                  <p className="truncate text-[11px] tracking-[0.12em] text-[#9b9ba3] uppercase">
+                    {meta(current) || " "}
+                  </p>
                 </div>
               </div>
 
@@ -421,7 +491,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                 <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={() => setLoopOne((v) => !v)}
-                    className={cn("p-1", loopOne ? "text-accent" : "text-faint hover:text-fg")}
+                    className={cn("p-1", loopOne ? "text-white" : "text-[#6b6b73] hover:text-white")}
                     aria-label="Boucler le morceau"
                     title="Boucler le morceau"
                   >
@@ -429,14 +499,14 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                   </button>
                   <button
                     onClick={() => step(-1)}
-                    className="text-muted hover:text-fg flex items-center gap-1 p-1 text-xs"
+                    className="p-1 text-[#9b9ba3] hover:text-white"
                     aria-label="Précédent"
                   >
                     <SkipBack className="size-4" fill="currentColor" />
                   </button>
                   <button
                     onClick={toggle}
-                    className="bg-fg text-bg grid size-9 place-items-center rounded-full transition hover:scale-105"
+                    className="grid size-9 place-items-center rounded-full bg-white text-[#0b0b0c] transition hover:scale-105"
                     aria-label={playing ? "Pause" : "Lecture"}
                   >
                     {playing ? (
@@ -445,16 +515,12 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                       <Play className="size-4 translate-x-px" fill="currentColor" />
                     )}
                   </button>
-                  <button
-                    onClick={() => step(1)}
-                    className="text-muted hover:text-fg flex items-center gap-1 p-1 text-xs"
-                    aria-label="Suivant"
-                  >
+                  <button onClick={() => step(1)} className="p-1 text-[#9b9ba3] hover:text-white" aria-label="Suivant">
                     <SkipForward className="size-4" fill="currentColor" />
                   </button>
                   <button
                     onClick={() => setAutoplay((v) => !v)}
-                    className={cn("p-1", autoplay ? "text-accent" : "text-faint hover:text-fg")}
+                    className={cn("p-1", autoplay ? "text-white" : "text-[#6b6b73] hover:text-white")}
                     aria-label="Enchaîner automatiquement"
                     title={autoplay ? "Enchaînement automatique activé" : "Enchaînement automatique désactivé"}
                   >
@@ -462,7 +528,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                   </button>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="tabular text-faint w-10 text-right font-mono text-[11px]">
+                  <span className="w-10 text-right font-mono text-[11px] text-[#6b6b73] tabular-nums">
                     {formatDuration(time)}
                   </span>
                   <Waveform
@@ -476,25 +542,25 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                       if (audio.current) audio.current.currentTime = s;
                       setTime(s);
                     }}
-                    height={30}
+                    height={26}
                     className="flex-1"
                   />
-                  <span className="tabular text-faint w-10 font-mono text-[11px]">
+                  <span className="w-10 font-mono text-[11px] text-[#6b6b73] tabular-nums">
                     {formatDuration(duration || current.duration)}
                   </span>
                 </div>
                 {error ? <p className="text-danger text-center text-xs">{error}</p> : null}
                 {tapToPlay && !playing ? (
-                  <button onClick={toggle} className="text-accent text-center text-xs font-medium">
-                    Appuie sur ▶ pour écouter « {current.title} »
+                  <button onClick={toggle} className="text-center text-xs font-medium text-white">
+                    Appuie sur lecture pour écouter « {current.title} »
                   </button>
                 ) : null}
               </div>
 
-              <div className="hidden w-36 items-center gap-2 md:flex">
+              <div className="hidden w-32 items-center gap-2 md:flex">
                 <button
                   onClick={() => setMuted((m) => !m)}
-                  className="text-muted hover:text-fg p-1"
+                  className="p-1 text-[#9b9ba3] hover:text-white"
                   aria-label={muted ? "Réactiver le son" : "Couper le son"}
                 >
                   {muted || volume === 0 ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}

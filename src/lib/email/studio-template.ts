@@ -31,6 +31,8 @@ export type StudioInput = {
   projectName: string;
   coverUrl: string | null;
   showCover: boolean;
+  /** Wide studio photo under the message (the brand image); falls back to the project cover. */
+  heroUrl: string | null;
   logoUrl: string | null;
   logoWidth: number;
   tracks: EmailTrack[];
@@ -163,8 +165,8 @@ export function renderStudioEmail(i: StudioInput): string {
 ${i.notes ? `<tr><td class="pad" style="padding:0 56px 10px;font-family:${FONT};font-size:12px;color:${C.faint};">${esc(i.notes)}</td></tr>` : ""}
 <tr><td style="padding:0 0 16px;font-size:0;line-height:0;">&nbsp;</td></tr>
 ${
-  i.showCover && i.coverUrl
-    ? `<tr><td style="padding:0 24px 18px;"><a href="${esc(i.listenUrl)}"><img src="${esc(i.coverUrl)}" width="552" alt="${esc(i.projectName)}" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px;"></a></td></tr>`
+  i.heroUrl || (i.showCover && i.coverUrl)
+    ? `<tr><td style="padding:0 24px 18px;"><a href="${esc(i.listenUrl)}"><img src="${esc((i.heroUrl || i.coverUrl)!)}" width="552" alt="${esc(i.projectName)}" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px;"></a></td></tr>`
     : ""
 }
 ${

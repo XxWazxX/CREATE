@@ -566,6 +566,7 @@ function EmailView({
       design,
       logoUrl,
       coverUrl,
+      heroUrl: "/brand/studio.jpg",
       tracks: projectTracks.map((x) => ({
         id: x.id,
         title: x.title,
