@@ -535,14 +535,14 @@ function EmailView({
   const [sending, setSending] = useState(false);
 
   const share = usable.find((s) => s.id === shareId) ?? null;
-  const titles = useMemo(
+  const projectTracks = useMemo(
     () =>
       tracks
         .filter((t) => t.project_id === project.id && t.file_path)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .map((t) => t.title),
+        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
     [tracks, project.id],
   );
+  const titles = projectTracks.map((t) => t.title);
   const canSend = recipients.length > 0 && !pending.trim() && subject.trim() && !sending;
   const nameOf = (email: string) => artists.find((a) => a.email === email)?.artist_name ?? null;
 
@@ -566,6 +566,16 @@ function EmailView({
       design,
       logoUrl,
       coverUrl,
+      tracks: projectTracks.map((x) => ({
+        id: x.id,
+        title: x.title,
+        bpm: x.bpm,
+        key: x.key,
+        duration: x.duration,
+        peaks: null,
+        coverUrl: null,
+        playUrl: "#",
+      })),
     }).html;
   }
 

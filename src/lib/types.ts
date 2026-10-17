@@ -192,6 +192,8 @@ export type EmailDesign = {
   logoPath: string | null;
   logoWidth: number;
   logoAlign: "left" | "center";
+  /** "studio": dark card with the list of prods (default) · "simple": plain personal-looking email. */
+  layout: "studio" | "simple";
 };
 
 export const DEFAULT_EMAIL_DESIGN: EmailDesign = {
@@ -200,11 +202,12 @@ export const DEFAULT_EMAIL_DESIGN: EmailDesign = {
   accentColor: "#1a73e8",
   background: "#ffffff",
   cta: "link",
-  ctaLabel: "Écouter le projet",
+  ctaLabel: "Écouter les prods",
   showCover: false,
   logoPath: null,
   logoWidth: 140,
   logoAlign: "left",
+  layout: "studio",
 };
 
 export const DEFAULT_SETTINGS: Settings = {

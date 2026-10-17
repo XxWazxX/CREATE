@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { hashToken, newTrackingToken } from "@/lib/analytics/tracking-server";
 import { mailProvider, sendEmail } from "@/lib/email/mailer";
-import { renderProjectEmail } from "@/lib/email/template";
+import { renderProjectEmail, type EmailTrack } from "@/lib/email/template";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_SETTINGS, type Settings } from "@/lib/types";
 
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     supabase.from("projects").select("id, name, cover_path").eq("id", share.project_id).maybeSingle(),
     supabase
       .from("tracks")
-      .select("title")
+      .select("id, title, bpm, key, duration, cover_path, current_version_id")
       .eq("project_id", share.project_id)
       .is("deleted_at", null)
       .not("file_path", "is", null)
@@ -75,6 +75,25 @@ export async function POST(req: Request) {
   const design = (profile?.settings as Settings | null)?.emailDesign ?? null;
   const base = appUrl(req);
   const titles = (tracks ?? []).map((t) => t.title as string);
+  // Waveforms for the Studio layout (peaks of each prod's current version).
+  const versionIds = (tracks ?? []).map((t) => t.current_version_id as string | null).filter((x): x is string => !!x);
+  const { data: versions } = versionIds.length
+    ? await supabase.from("track_versions").select("id, peaks").in("id", versionIds)
+    : { data: [] };
+  const peaksOf = new Map((versions ?? []).map((v) => [v.id as string, (v.peaks as number[] | null) ?? null]));
+  const projectCover = project.cover_path ? `${base}/api/p/${share.token}/cover` : null;
+  /** One row per prod; each ▶ opens the listening page on that prod (through the tracked link). */
+  const emailTracks = (listenUrl: string): EmailTrack[] =>
+    (tracks ?? []).map((t) => ({
+      id: t.id as string,
+      title: t.title as string,
+      bpm: t.bpm == null ? null : Number(t.bpm),
+      key: (t.key as string | null) ?? null,
+      duration: (t.duration as number | null) ?? null,
+      peaks: t.current_version_id ? (peaksOf.get(t.current_version_id as string) ?? null) : null,
+      coverUrl: t.cover_path ? `${base}/api/p/${share.token}/cover?track=${t.id}` : projectCover,
+      playUrl: `${listenUrl}?t=${t.id}`,
+    }));
 
   // Names come from the owner's address book (RLS), never from the request.
   // Missing table (migration not applied yet) just means no names.
@@ -92,8 +111,9 @@ export async function POST(req: Request) {
       senderName,
       listenUrl,
       trackingPixelUrl,
+      tracks: emailTracks(listenUrl),
       design,
-      coverUrl: project.cover_path ? `${base}/api/p/${share.token}/cover` : null,
+      coverUrl: projectCover,
       logoUrl: design?.logoPath ? `${base}/api/p/${share.token}/logo` : null,
       passwordProtected: !!share.password_hash,
       expiresLabel: share.expires_at

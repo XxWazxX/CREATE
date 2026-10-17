@@ -65,6 +65,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
   const [autoplay, setAutoplay] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openStems, setOpenStems] = useState<string | null>(null);
+  const [tapToPlay, setTapToPlay] = useState(false);
 
   const current = index != null ? tracks[index] : null;
   const { tracker, flushSoon } = useListenTracking(token, permissions.streaming);
@@ -72,7 +73,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
 
   const start = useCallback(
-    (i: number) => {
+    (i: number, opts: { fromEmail?: boolean } = {}) => {
       const t = tracks[i];
       const a = audio.current;
       if (!t?.streamUrl || !a) return;
@@ -84,7 +85,12 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
       setTime(0);
       setDuration(t.duration ?? 0);
       a.src = t.streamUrl;
-      a.play().catch(() => setError("Lecture impossible — réessaie ou télécharge le morceau."));
+      setTapToPlay(false);
+      a.play().catch((e: unknown) => {
+        // Arriving from an email, the browser may refuse to start audio without a tap.
+        if (opts.fromEmail && e instanceof DOMException && e.name === "NotAllowedError") setTapToPlay(true);
+        else setError("Lecture impossible — réessaie ou télécharge le morceau.");
+      });
       if (!counted.current.has(t.id)) {
         counted.current.add(t.id);
         void fetch(`/api/p/${token}/play`, { method: "POST" }).catch(() => undefined);
@@ -92,6 +98,21 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
     },
     [tracks, token, tracker],
   );
+
+  // ▶ of one prod in the email → /p/{token}?t={trackId}: open the page on that prod.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("t");
+    if (!t) return;
+    const i = tracks.findIndex((x) => x.id === t && x.streamUrl);
+    if (i < 0) return;
+    const timer = window.setTimeout(() => {
+      start(i, { fromEmail: true });
+      document.getElementById(`track-${t}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = useCallback(() => {
     const a = audio.current;
@@ -273,7 +294,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
             const isCurrent = index === i;
             const menu = trackMenu(t);
             return (
-              <li key={t.id} className={cn("group", isCurrent && "bg-hover/50")}>
+              <li key={t.id} id={`track-${t.id}`} className={cn("group", isCurrent && "bg-hover/50")}>
                 <div
                   onClick={() => (t.streamUrl ? (isCurrent ? toggle() : start(i)) : undefined)}
                   className={cn(
@@ -463,6 +484,11 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
                   </span>
                 </div>
                 {error ? <p className="text-danger text-center text-xs">{error}</p> : null}
+                {tapToPlay && !playing ? (
+                  <button onClick={toggle} className="text-accent text-center text-xs font-medium">
+                    Appuie sur ▶ pour écouter « {current.title} »
+                  </button>
+                ) : null}
               </div>
 
               <div className="hidden w-36 items-center gap-2 md:flex">

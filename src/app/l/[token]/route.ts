@@ -32,7 +32,11 @@ async function handle(req: Request, ctx: RouteContext<"/l/[token]">) {
     .maybeSingle();
   if (!share) return gone();
 
-  const res = NextResponse.redirect(new URL(`/p/${share.token}`, req.url), 302);
+  const target = new URL(`/p/${share.token}`, req.url);
+  // ▶ of one prod in the email: open the page on that prod.
+  const t = new URL(req.url).searchParams.get("t");
+  if (t && /^[0-9a-f-]{36}$/.test(t)) target.searchParams.set("t", t);
+  const res = NextResponse.redirect(target, 302);
   res.headers.set("cache-control", "no-store");
   res.headers.set("referrer-policy", "no-referrer");
   if (!(await isOwnerRequest())) {

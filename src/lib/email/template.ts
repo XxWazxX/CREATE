@@ -6,6 +6,9 @@
  */
 
 import { DEFAULT_EMAIL_DESIGN, EMAIL_FONTS, type EmailDesign } from "@/lib/types";
+import { MAX_EMAIL_TRACKS, renderStudioEmail, type EmailTrack } from "./studio-template";
+
+export type { EmailTrack };
 
 function esc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -32,6 +35,7 @@ export function normalizeDesign(d: Partial<EmailDesign> | null | undefined): Ema
     logoPath: typeof x.logoPath === "string" && x.logoPath ? x.logoPath : null,
     logoWidth: Math.min(300, Math.max(40, Math.round(Number(x.logoWidth) || DEFAULT_EMAIL_DESIGN.logoWidth))),
     logoAlign: x.logoAlign === "center" ? "center" : "left",
+    layout: x.layout === "simple" ? "simple" : "studio",
   };
 }
 
@@ -70,6 +74,8 @@ export type ProjectEmailInput = {
   logoUrl?: string | null;
   /** Open-tracking pixel (1×1, transparent) — only in the copy actually sent. */
   trackingPixelUrl?: string | null;
+  /** Prods with their details and per-prod links (Studio layout). */
+  tracks?: EmailTrack[];
 };
 
 export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: string } {
@@ -152,6 +158,57 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     .filter((l, idx, arr) => !(l === "" && arr[idx - 1] === ""))
     .join("\n")
     .trim();
+
+  if (d.layout === "studio") {
+    const tracks: EmailTrack[] =
+      i.tracks ??
+      i.trackTitles.map((title, n) => ({
+        id: `t${n}`,
+        title,
+        bpm: null,
+        key: null,
+        duration: null,
+        peaks: null,
+        coverUrl: null,
+        playUrl: i.listenUrl,
+      }));
+    const studioText = [
+      i.message.trim(),
+      "",
+      `${d.ctaLabel} : ${i.listenUrl}`,
+      notes,
+      "",
+      `${i.projectName} (${count})`,
+      ...tracks.slice(0, MAX_EMAIL_TRACKS).map((t) => `- ${t.title} : ${t.playUrl}`),
+      "",
+      i.signature,
+      i.senderName,
+      ig ? `Instagram : ${igUrl}` : "",
+    ]
+      .filter((l, idx, arr) => !(l === "" && arr[idx - 1] === ""))
+      .join("\n")
+      .trim();
+    return {
+      html: renderStudioEmail({
+        senderName: i.senderName,
+        message: i.message,
+        signature: i.signature,
+        instagramHandle: ig,
+        ctaLabel: d.ctaLabel,
+        listenUrl: i.listenUrl,
+        projectName: i.projectName,
+        coverUrl: i.coverUrl ?? null,
+        // The artwork is part of the Studio layout (the toggle only affects the Simple one).
+        showCover: true,
+        logoUrl: d.logoPath ? (i.logoUrl ?? null) : null,
+        logoWidth: d.logoWidth,
+        tracks,
+        notes,
+        trackingPixelUrl: i.trackingPixelUrl ?? null,
+      }),
+      text: studioText,
+    };
+  }
 
   return { html: html + pixel, text };
 }

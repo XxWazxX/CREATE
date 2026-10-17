@@ -320,6 +320,13 @@ const SAMPLE_COVER =
     '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="#f2b544"/><stop offset="1" stop-color="#a24bd1"/></linearGradient></defs><rect width="160" height="160" fill="url(#g)"/></svg>',
   );
 
+/** Example prods for the preview only (waveforms drawn without real audio). */
+const SAMPLE_TRACKS = [
+  { title: "Prod 1", bpm: 142, key: "D# minor", duration: 192 },
+  { title: "Prod 2", bpm: 148, key: "C minor", duration: 168 },
+  { title: "Prod 3", bpm: 140, key: "G# minor", duration: 185 },
+].map((t, n) => ({ ...t, id: `sample-${n}`, peaks: null, coverUrl: null, playUrl: "#" }));
+
 function EmailDesignCard({
   d,
   email,
@@ -348,7 +355,9 @@ function EmailDesignCard({
     design: d,
     coverUrl: SAMPLE_COVER,
     logoUrl,
+    tracks: SAMPLE_TRACKS,
   }).html;
+  const studio = d.layout === "studio";
 
   const pickLogo = async (file: File | undefined) => {
     if (!file) return;
@@ -374,6 +383,23 @@ function EmailDesignCard({
     <Card title="Design de l'e-mail" description="Personnalise l'apparence des e-mails envoyés avec tes liens.">
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
+          <Field
+            label="Mise en page"
+            hint={
+              studio
+                ? "Fond sombre, gros bouton, cover du projet et liste des prods avec un ▶ chacune."
+                : "Comme un e-mail écrit à la main : le moins susceptible d'aller en spam."
+            }
+          >
+            <Segmented
+              value={d.layout}
+              options={[
+                { id: "studio", label: "Studio" },
+                { id: "simple", label: "Simple" },
+              ]}
+              onChange={(v) => update({ layout: v })}
+            />
+          </Field>
           <Field label="Logo / bannière" hint="Affiché en haut de l'e-mail. PNG transparent conseillé.">
             <div className="flex items-center gap-2">
               {logoUrl ? (
@@ -431,28 +457,35 @@ function EmailDesignCard({
               </Field>
             </>
           ) : null}
-          <Field label="Police">
-            <Segmented
-              value={d.font}
-              options={(Object.keys(EMAIL_FONTS) as EmailFont[]).map((id) => ({ id, label: EMAIL_FONTS[id].label }))}
-              onChange={(v) => update({ font: v })}
-            />
-          </Field>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
-            <ColorField label="Texte" value={d.textColor} onChange={(v) => update({ textColor: v })} />
-            <ColorField label="Lien / bouton" value={d.accentColor} onChange={(v) => update({ accentColor: v })} />
-            <ColorField label="Fond" value={d.background} onChange={(v) => update({ background: v })} />
-          </div>
-          <Field label="Lien d'écoute">
-            <Segmented
-              value={d.cta}
-              options={[
-                { id: "link", label: "Lien texte" },
-                { id: "button", label: "Bouton" },
-              ]}
-              onChange={(v) => update({ cta: v })}
-            />
-          </Field>
+          {!studio ? (
+            <>
+              <Field label="Police">
+                <Segmented
+                  value={d.font}
+                  options={(Object.keys(EMAIL_FONTS) as EmailFont[]).map((id) => ({
+                    id,
+                    label: EMAIL_FONTS[id].label,
+                  }))}
+                  onChange={(v) => update({ font: v })}
+                />
+              </Field>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
+                <ColorField label="Texte" value={d.textColor} onChange={(v) => update({ textColor: v })} />
+                <ColorField label="Lien / bouton" value={d.accentColor} onChange={(v) => update({ accentColor: v })} />
+                <ColorField label="Fond" value={d.background} onChange={(v) => update({ background: v })} />
+              </div>
+              <Field label="Lien d'écoute">
+                <Segmented
+                  value={d.cta}
+                  options={[
+                    { id: "link", label: "Lien texte" },
+                    { id: "button", label: "Bouton" },
+                  ]}
+                  onChange={(v) => update({ cta: v })}
+                />
+              </Field>
+            </>
+          ) : null}
           <Field label="Texte du lien">
             <Input
               value={d.ctaLabel}
@@ -461,19 +494,28 @@ function EmailDesignCard({
               maxLength={60}
             />
           </Field>
-          <label className="flex items-center justify-between gap-4">
-            <span>
-              <span className="block text-[13px]">Afficher la cover du projet</span>
-              <span className="text-faint block text-xs">
-                Les images augmentent un peu le risque d&apos;arriver en spam.
+          {!studio ? (
+            <label className="flex items-center justify-between gap-4">
+              <span>
+                <span className="block text-[13px]">Afficher la cover du projet</span>
+                <span className="text-faint block text-xs">
+                  Les images augmentent un peu le risque d&apos;arriver en spam.
+                </span>
               </span>
-            </span>
-            <Switch checked={d.showCover} onChange={(v) => update({ showCover: v })} label="Afficher la cover" />
-          </label>
+              <Switch checked={d.showCover} onChange={(v) => update({ showCover: v })} label="Afficher la cover" />
+            </label>
+          ) : (
+            <p className="text-faint text-xs leading-relaxed">
+              Les messageries (Gmail, Outlook…) ne lisent pas l&apos;audio dans un e-mail : chaque ▶ ouvre la page
+              d&apos;écoute directement sur la prod.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => update(appEmailColors(accent))}>
-              <Palette className="size-3.5" /> Couleurs de CREATE
-            </Button>
+            {!studio ? (
+              <Button type="button" variant="secondary" onClick={() => update(appEmailColors(accent))}>
+                <Palette className="size-3.5" /> Couleurs de CREATE
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -487,9 +529,11 @@ function EmailDesignCard({
           <div className="text-muted mb-1.5 text-xs">Aperçu</div>
           <iframe
             title="Aperçu du design de l'e-mail"
-            srcDoc={`<body style="margin:0;padding:16px;background:#fff">${html}</body>`}
+            srcDoc={
+              html.startsWith("<!doctype") ? html : `<body style="margin:0;padding:16px;background:#fff">${html}</body>`
+            }
             sandbox=""
-            className="border-line h-[520px] w-full rounded-xl border bg-white"
+            className="border-line h-[620px] w-full rounded-xl border bg-white"
           />
         </div>
       </div>
