@@ -40,7 +40,15 @@ const base = {
 const sent = renderProjectEmail({ ...base, trackingPixelUrl: "https://create.example/api/t/o/abc" });
 const archived = renderProjectEmail(base);
 
-check("Studio is the default layout", sent.html.includes("Écoute en haute qualité"));
+check("Studio is the default layout", sent.html.includes("border-left:11px solid #ffffff"));
+check(
+  'no big "écouter les prods" button section',
+  !/couter les prods/i.test(sent.html) && !sent.html.includes("Lien sécurisé"),
+);
+check(
+  "no ▶ character (turned into an orange emoji by Gmail)",
+  !sent.html.includes("&#9654;") && !sent.html.includes("▶"),
+);
 check("under Gmail's clipping limit (15 prods with waveforms)", sent.html.length < 95_000, sent.html.length);
 check(`at most ${MAX_EMAIL_TRACKS} prod rows, the rest as a link`, sent.html.includes("+ 3 autres prods"));
 check(
@@ -68,10 +76,7 @@ check(
 );
 check("neutral waveform when peaks are missing", waveHeights(null, "x").length === 30);
 const simple = renderProjectEmail({ ...base, design: { layout: "simple" } });
-check(
-  "Simple layout still available",
-  !simple.html.includes("Écoute en haute qualité") && simple.html.includes("Werenoi"),
-);
+check("Simple layout still available", !simple.html.includes("border-left:11px") && simple.html.includes("Werenoi"));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll email checks passed");
 process.exit(failures ? 1 : 0);

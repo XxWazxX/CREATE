@@ -52,8 +52,9 @@ const C = {
   wave: "#5a5a62",
 };
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-// U+FE0E keeps ▶ as a text glyph (no emoji) on iOS.
-const PLAY = "&#9654;&#xFE0E;";
+// White play triangle drawn with borders: a ▶ character gets turned into an
+// orange emoji by Gmail / iOS whatever the font.
+const PLAY = `<span style="display:block;width:0;height:0;margin:11px 0 0 14px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid #ffffff;font-size:0;line-height:0;"></span>`;
 
 function esc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -125,8 +126,8 @@ function trackRow(t: EmailTrack, last: boolean) {
 </td>
 <td class="wf" style="padding:12px 8px;${last ? "" : `border-bottom:1px solid ${C.line};`}" width="${BARS * 4}">${waveform(waveHeights(t.peaks, t.id))}</td>
 <td class="dur" align="right" style="padding:12px 8px;font-family:${FONT};font-size:12px;color:${C.muted};white-space:nowrap;${last ? "" : `border-bottom:1px solid ${C.line};`}">${durationText(t.duration) ?? ""}</td>
-<td align="right" style="padding:12px 16px 12px 4px;${last ? "" : `border-bottom:1px solid ${C.line};`}" width="44">
-  <a href="${href}" style="display:inline-block;width:36px;height:36px;line-height:36px;border:2px solid ${C.text};border-radius:50%;text-align:center;color:${C.text};font-size:13px;text-decoration:none;font-family:Arial,sans-serif;" aria-label="Écouter ${esc(t.title)}">${PLAY}</a>
+<td style="padding:12px 16px 12px 4px;${last ? "" : `border-bottom:1px solid ${C.line};`}" width="44">
+  <a href="${href}" style="display:block;width:36px;height:36px;margin-left:auto;border:2px solid #ffffff;border-radius:50%;text-align:left;text-decoration:none;font-size:0;line-height:0;" aria-label="Écouter ${esc(t.title)}">${PLAY}</a>
 </td>
 </tr>`;
 }
@@ -151,7 +152,6 @@ export function renderStudioEmail(i: StudioInput): string {
 @media only screen and (max-width:520px){
   .wf{display:none!important;}
   .pad{padding-left:20px!important;padding-right:20px!important;}
-  .cta{padding:15px 28px!important;}
 }
 </style></head>
 <body style="margin:0;padding:0;background:${C.page};">
@@ -160,11 +160,8 @@ export function renderStudioEmail(i: StudioInput): string {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.card}" style="width:100%;max-width:600px;background:${C.card};border-radius:16px;">
 <tr><td align="center" style="padding:40px 32px 12px;">${logo}</td></tr>
 <tr><td class="pad" style="padding:20px 56px 6px;">${paragraphs(i.message, p)}</td></tr>
-<tr><td align="center" style="padding:14px 32px 10px;">
-  <a href="${esc(i.listenUrl)}" class="cta" style="display:inline-block;background:#ffffff;color:#0b0b0c;border-radius:10px;padding:17px 64px;font-family:${FONT};font-size:14px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;">${PLAY}&nbsp;&nbsp;&nbsp;${esc(i.ctaLabel)}</a>
-</td></tr>
-<tr><td align="center" style="padding:4px 32px ${i.notes ? "4px" : "26px"};font-family:${FONT};font-size:12px;color:${C.muted};">Lien sécurisé &bull; Accès privé &bull; Écoute en haute qualité</td></tr>
-${i.notes ? `<tr><td align="center" style="padding:2px 32px 26px;font-family:${FONT};font-size:12px;color:${C.faint};">${esc(i.notes)}</td></tr>` : ""}
+${i.notes ? `<tr><td class="pad" style="padding:0 56px 10px;font-family:${FONT};font-size:12px;color:${C.faint};">${esc(i.notes)}</td></tr>` : ""}
+<tr><td style="padding:0 0 16px;font-size:0;line-height:0;">&nbsp;</td></tr>
 ${
   i.showCover && i.coverUrl
     ? `<tr><td style="padding:0 24px 18px;"><a href="${esc(i.listenUrl)}"><img src="${esc(i.coverUrl)}" width="552" alt="${esc(i.projectName)}" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px;"></a></td></tr>`

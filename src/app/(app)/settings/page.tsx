@@ -387,7 +387,7 @@ function EmailDesignCard({
             label="Mise en page"
             hint={
               studio
-                ? "Fond sombre, gros bouton, cover du projet et liste des prods avec un ▶ chacune."
+                ? "Fond sombre, cover du projet et liste des prods, chacune avec son bouton lecture."
                 : "Comme un e-mail écrit à la main : le moins susceptible d'aller en spam."
             }
           >
@@ -486,14 +486,16 @@ function EmailDesignCard({
               </Field>
             </>
           ) : null}
-          <Field label="Texte du lien">
-            <Input
-              value={d.ctaLabel}
-              onChange={(e) => update({ ctaLabel: e.target.value })}
-              placeholder={DEFAULT_EMAIL_DESIGN.ctaLabel}
-              maxLength={60}
-            />
-          </Field>
+          {!studio ? (
+            <Field label="Texte du lien">
+              <Input
+                value={d.ctaLabel}
+                onChange={(e) => update({ ctaLabel: e.target.value })}
+                placeholder={DEFAULT_EMAIL_DESIGN.ctaLabel}
+                maxLength={60}
+              />
+            </Field>
+          ) : null}
           {!studio ? (
             <label className="flex items-center justify-between gap-4">
               <span>
