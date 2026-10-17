@@ -53,7 +53,8 @@ async function main() {
   await db.exec(migration("0002_project_shares.sql"));
   await db.exec(grantAll);
   await db.exec(migration("0003_artists.sql"));
-  check("migrations 0001 + 0002 + 0003 applied", true);
+  await db.exec(migration("0004_analytics.sql"));
+  check("migrations 0001 → 0004 applied", true);
 
   await db.exec(`insert into auth.users (id, email) values ('${A}', 'a@x.com'), ('${B}', 'b@x.com')`);
   const profiles = await db.query<{ n: number }>("select count(*)::int n from public.profiles");
@@ -202,7 +203,10 @@ async function main() {
   const d = sh.rows[0];
   check(
     "project share defaults (stream + MP3 on, WAV + stems off)",
-    d.allow_streaming === true && d.allow_mp3_download === true && d.allow_wav_download === false && d.allow_stems_download === false,
+    d.allow_streaming === true &&
+      d.allow_mp3_download === true &&
+      d.allow_wav_download === false &&
+      d.allow_stems_download === false,
     d,
   );
   let shortToken = false;
@@ -216,7 +220,11 @@ async function main() {
   check("RLS: other user can't see project shares", bShares.rows[0].n === 0);
   let bInsert = false;
   try {
-    await as(B, "insert into public.project_shares (project_id, token, user_id) values ($1, $2, $3)", [P1, "y".repeat(32), A]);
+    await as(B, "insert into public.project_shares (project_id, token, user_id) values ($1, $2, $3)", [
+      P1,
+      "y".repeat(32),
+      A,
+    ]);
   } catch {
     bInsert = true;
   }
@@ -229,10 +237,19 @@ async function main() {
   }
   check("stats function not callable from the browser", hitBlocked);
   const shareId = (await db.query<{ id: string }>("select id from public.project_shares limit 1")).rows[0].id;
-  await db.exec(`set role service_role; select public.project_share_hit('${shareId}', 'view'); select public.project_share_hit('${shareId}', 'play'); select public.project_share_hit('${shareId}', 'play'); select public.project_share_hit('${shareId}', 'download'); reset role;`);
-  const stats = await db.query<Record<string, unknown>>("select view_count, play_count, download_count, last_viewed_at is not null as seen from public.project_shares where id = $1", [shareId]);
+  await db.exec(
+    `set role service_role; select public.project_share_hit('${shareId}', 'view'); select public.project_share_hit('${shareId}', 'play'); select public.project_share_hit('${shareId}', 'play'); select public.project_share_hit('${shareId}', 'download'); reset role;`,
+  );
+  const stats = await db.query<Record<string, unknown>>(
+    "select view_count, play_count, download_count, last_viewed_at is not null as seen from public.project_shares where id = $1",
+    [shareId],
+  );
   const st = stats.rows[0];
-  check("stats counters (server only)", st.view_count === 1 && st.play_count === 2 && st.download_count === 1 && st.seen === true, st);
+  check(
+    "stats counters (server only)",
+    st.view_count === 1 && st.play_count === 2 && st.download_count === 1 && st.seen === true,
+    st,
+  );
   await as(
     A,
     "insert into public.email_sends (track_id, project_id, project_share_id, track_title, recipient, subject, status) values ($1,$2,$3,'Album 2026','john@x.com','New beats','sent')",
@@ -301,6 +318,102 @@ async function main() {
   const anonBlocked = await refused(db.query("select count(*) from public.artists"));
   await db.exec("reset role;");
   check("artists: anonymous visitors can't read the table", anonBlocked);
+
+  // Analytics: written by the server only, read by the owner only
+  const PA = "dddddddd-0000-0000-0000-000000000001";
+  const TA = "dddddddd-0000-0000-0000-000000000002";
+  const TB = "dddddddd-0000-0000-0000-000000000003";
+  await as(A, "insert into public.projects (id, name) values ($1, 'Werenoi')", [PA]);
+  await as(
+    A,
+    "insert into public.tracks (id, title, project_id) values ($1, 'Midnight Drive', $3), ($2, 'Dark Room', $3)",
+    [TA, TB, PA],
+  );
+  const shareA = await as(A, "insert into public.project_shares (project_id, token) values ($1, $2) returning id", [
+    PA,
+    "analytics-token-0123456789abcdef",
+  ]);
+  const SH = shareA.rows[0].id as string;
+  const sendA = await as(
+    A,
+    "insert into public.email_sends (project_id, project_share_id, track_title, recipient, subject, tracking_token_hash) values ($1, $2, 'Werenoi', 'artist@label.com', 'Nouvelles prods', 'hash-1') returning id",
+    [PA, SH],
+  );
+  const SEND = sendA.rows[0].id as string;
+  check(
+    "analytics: tracking token hash is unique",
+    await refused(
+      as(
+        A,
+        "insert into public.email_sends (track_title, recipient, subject, tracking_token_hash) values ('x', 'y@z.com', 's', 'hash-1')",
+      ),
+    ),
+  );
+
+  const asServer = async (sql: string, params: unknown[] = []) => {
+    await db.exec("set role service_role;");
+    try {
+      return await db.query<Record<string, unknown>>(sql, params);
+    } finally {
+      await db.exec("reset role;");
+    }
+  };
+  const openSql =
+    "insert into public.email_events (user_id, email_send_id, event_type, origin, dedupe_key) values ($1, $2, 'open', 'proxy', 'seen:2026-10-17T09') on conflict (email_send_id, event_type, dedupe_key) do nothing";
+  await asServer(openSql, [A, SEND]);
+  await asServer(openSql, [A, SEND]);
+  const opens = await as(A, "select count(*)::int n from public.email_events where event_type = 'open'");
+  check("analytics: identical opens are stored once", opens.rows[0].n === 1, opens.rows[0]);
+  check(
+    "analytics: the browser (owner session) can't write events",
+    await refused(
+      as(
+        A,
+        `insert into public.email_events (user_id, email_send_id, event_type, dedupe_key) values ('${A}', '${SEND}', 'click', 'k')`,
+      ),
+    ),
+  );
+
+  const sess = await asServer(
+    "insert into public.listening_sessions (user_id, project_share_id, project_id, email_send_id, source, session_token_hash) values ($1, $2, $3, $4, 'email', 'sess-hash') returning id",
+    [A, SH, PA, SEND],
+  );
+  const S1 = sess.rows[0].id as string;
+  const PLAY = "eeeeeeee-0000-0000-0000-000000000001";
+  const ev = (key: string, type: string, listened: number, track = TA, play = PLAY) =>
+    asServer(
+      "insert into public.listening_events (user_id, session_id, track_id, play_id, event_type, listened_seconds, duration_seconds, event_idempotency_key) values ($1, $2, $3, $4, $5, $6, 180, $7) on conflict (session_id, event_idempotency_key) do nothing",
+      [A, S1, track, play, type, listened, key],
+    );
+  await ev("k0", "start", 0);
+  await ev("k1", "progress", 100);
+  await ev("k1", "progress", 100); // same event re-sent after a network error
+  await ev("k2", "end", 100);
+  await ev("k3", "start", 0, TB, "eeeeeeee-0000-0000-0000-000000000002");
+  check("analytics: more than 120 s in one event is refused", await refused(ev("k4", "progress", 500)));
+  const playsA = await as(
+    A,
+    "select track_id, listened_seconds, reached_end, email_send_id from public.listening_plays order by track_id",
+  );
+  const midnight = playsA.rows.find((r) => r.track_id === TA);
+  check(
+    "analytics: replayed event counted once, listened capped at the track length",
+    Math.abs(Number(midnight?.listened_seconds) - 189) < 0.01 && midnight?.reached_end === true,
+    midnight,
+  );
+  check("analytics: plays keep the email they came from", midnight?.email_send_id === SEND);
+  check("analytics: two tracks give two plays", playsA.rows.length === 2, playsA.rows.length);
+  const playsB = await as(B, "select count(*)::int n from public.listening_plays");
+  const sessB = await as(B, "select count(*)::int n from public.listening_sessions");
+  check("analytics: another owner sees none of it (RLS)", playsB.rows[0].n === 0 && sessB.rows[0].n === 0);
+  await db.exec("set role anon;");
+  const anonEvents = await refused(db.query("select count(*) from public.listening_events"));
+  const anonPlays = await refused(db.query("select count(*) from public.listening_plays"));
+  await db.exec("reset role;");
+  check("analytics: anonymous visitors can't read events or plays", anonEvents && anonPlays);
+  await as(A, "delete from public.tracks where id = $1", [TA]);
+  const afterDelete = await as(A, "select count(*)::int n from public.listening_plays");
+  check("analytics: deleting a track removes its listening data", afterDelete.rows[0].n === 1, afterDelete.rows[0]);
 
   console.log(failures ? `\n${failures} check(s) failed` : "\nAll schema checks passed");
   process.exit(failures ? 1 : 0);

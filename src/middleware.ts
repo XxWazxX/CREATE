@@ -8,7 +8,8 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/public-env";
 // the Cloudflare (OpenNext) adapter, `middleware.ts` is.
 
 /** Public project links never get the owner session. */
-const PUBLIC_PATHS = ["/p", "/api/p", "/api/health"];
+/** Tracked email links (/l) and open pixels (/api/t) are public too: their random token is the key. */
+const PUBLIC_PATHS = ["/p", "/api/p", "/api/health", "/l", "/api/t"];
 /** The access-code screen itself. */
 const UNLOCK_PATHS = ["/unlock", "/api/unlock"];
 

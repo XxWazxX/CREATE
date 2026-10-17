@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   ChevronRight,
   Clock,
   Disc3,
@@ -41,6 +42,7 @@ export const NAV = [
   { href: "/recent", label: "Ajouts récents", icon: Clock },
   { href: "/artists", label: "Artistes", icon: Users },
   { href: "/sent", label: "Envoyés", icon: Mail },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/trash", label: "Corbeille", icon: Trash2 },
 ] as const;
 

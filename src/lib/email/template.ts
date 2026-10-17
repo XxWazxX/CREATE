@@ -24,7 +24,10 @@ export function normalizeDesign(d: Partial<EmailDesign> | null | undefined): Ema
     accentColor: color(x.accentColor, DEFAULT_EMAIL_DESIGN.accentColor),
     background: color(x.background, DEFAULT_EMAIL_DESIGN.background),
     cta: x.cta === "button" ? "button" : "link",
-    ctaLabel: String(x.ctaLabel ?? "").trim().slice(0, 60) || DEFAULT_EMAIL_DESIGN.ctaLabel,
+    ctaLabel:
+      String(x.ctaLabel ?? "")
+        .trim()
+        .slice(0, 60) || DEFAULT_EMAIL_DESIGN.ctaLabel,
     showCover: !!x.showCover,
     logoPath: typeof x.logoPath === "string" && x.logoPath ? x.logoPath : null,
     logoWidth: Math.min(300, Math.max(40, Math.round(Number(x.logoWidth) || DEFAULT_EMAIL_DESIGN.logoWidth))),
@@ -65,6 +68,8 @@ export type ProjectEmailInput = {
   /** Public URLs of the images (only used when the design shows them). */
   coverUrl?: string | null;
   logoUrl?: string | null;
+  /** Open-tracking pixel (1×1, transparent) — only in the copy actually sent. */
+  trackingPixelUrl?: string | null;
 };
 
 export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: string } {
@@ -126,6 +131,9 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     d.background.toLowerCase() === "#ffffff"
       ? `<div dir="ltr" style="font-family:${font};">\n${body}\n</div>`
       : `<div dir="ltr" style="background:${d.background};padding:24px;border-radius:12px;font-family:${font};">\n${body}\n</div>`;
+  const pixel = i.trackingPixelUrl
+    ? `\n<img src="${esc(i.trackingPixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0;">`
+    : "";
 
   const text = [
     i.message.trim(),
@@ -145,5 +153,5 @@ export function renderProjectEmail(i: ProjectEmailInput): { html: string; text: 
     .join("\n")
     .trim();
 
-  return { html, text };
+  return { html: html + pixel, text };
 }

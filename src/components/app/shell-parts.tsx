@@ -338,7 +338,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const items = [NAV[0], NAV[1], NAV[2], NAV[3]];
-  const more = [NAV[4], NAV[5], NAV[6], NAV[7], { href: "/settings", label: "Réglages" }];
+  const more = [NAV[4], NAV[5], NAV[6], NAV[7], NAV[8], { href: "/settings", label: "Réglages" }];
   return (
     <nav className="border-line bg-panel flex shrink-0 items-stretch border-t pb-[env(safe-area-inset-bottom)] md:hidden">
       {items.map((it) => (

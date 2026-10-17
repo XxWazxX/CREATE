@@ -20,6 +20,7 @@ import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
 import { PlayingBars } from "@/components/ui/misc";
 import { Slider, TooltipProvider } from "@/components/ui/slider";
 import { Waveform } from "@/components/ui/waveform";
+import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
 import { keyLabel, STEM_LABELS, type StemKind } from "@/lib/music";
 import { cn, formatBpm, formatDuration } from "@/lib/utils";
@@ -52,6 +53,8 @@ function meta(t: PublicTrack) {
 export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
   const audio = useRef<HTMLAudioElement>(null);
   const counted = useRef(new Set<string>());
+  // Track currently loaded in <audio> (events fire after the state update).
+  const loaded = useRef<string | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -64,6 +67,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
   const [openStems, setOpenStems] = useState<string | null>(null);
 
   const current = index != null ? tracks[index] : null;
+  const { tracker, flushSoon } = useListenTracking(token, permissions.streaming);
   const dl = (kind: string, trackId?: string) =>
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
 
@@ -73,6 +77,9 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
       const a = audio.current;
       if (!t?.streamUrl || !a) return;
       setError(null);
+      // Close the running play before switching tracks.
+      tracker.pause(a.currentTime);
+      loaded.current = t.id;
       setIndex(i);
       setTime(0);
       setDuration(t.duration ?? 0);
@@ -83,7 +90,7 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
         void fetch(`/api/p/${token}/play`, { method: "POST" }).catch(() => undefined);
       }
     },
-    [tracks, token],
+    [tracks, token, tracker],
   );
 
   const toggle = useCallback(() => {
@@ -133,6 +140,8 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
 
   const onEnded = () => {
     const a = audio.current;
+    if (a) tracker.ended(a.currentTime);
+    flushSoon();
     if (loopOne && a) {
       a.currentTime = 0;
       void a.play();
@@ -363,6 +372,12 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
         <footer className="text-faint mx-auto mt-10 flex max-w-4xl items-center justify-center gap-2 px-4 pb-10 text-[11px] tracking-[0.2em]">
           <Logo className="size-3.5" /> LIEN PRIVÉ · CREATE
         </footer>
+        {permissions.streaming ? (
+          <p className="text-faint mx-auto -mt-6 max-w-md px-4 pb-10 text-center text-[11px] leading-relaxed">
+            Pour informer l’auteur, cette page mesure de façon anonyme les morceaux lancés et la durée écoutée. Aucune
+            donnée publicitaire, aucune empreinte de ton appareil.
+          </p>
+        ) : null}
 
         {/* Persistent player */}
         {current ? (
@@ -475,9 +490,23 @@ export function ProjectPlayer({ token, project, tracks, permissions }: Props) {
           ref={audio}
           preload="none"
           onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlaying={(e) => {
+            const a = e.currentTarget;
+            if (loaded.current)
+              tracker.playing(loaded.current, a.currentTime, Number.isFinite(a.duration) ? a.duration : null);
+          }}
+          onPause={(e) => {
+            setPlaying(false);
+            tracker.pause(e.currentTarget.currentTime);
+            flushSoon();
+          }}
+          onSeeked={(e) => tracker.seeked(e.currentTarget.currentTime)}
           onEnded={onEnded}
-          onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+          onTimeUpdate={(e) => {
+            const a = e.currentTarget;
+            setTime(a.currentTime);
+            tracker.time(a.currentTime, Number.isFinite(a.duration) ? a.duration : null);
+          }}
           onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setDuration(e.currentTarget.duration)}
           onError={() => index != null && setError("Lecture impossible — réessaie ou télécharge le morceau.")}
         />

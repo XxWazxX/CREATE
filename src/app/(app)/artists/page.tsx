@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Download, FileSpreadsheet, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Download,
+  FileSpreadsheet,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ImportArtistsDialog } from "@/components/artists/import-dialog";
@@ -207,7 +220,7 @@ export default function ArtistsPage() {
                           E-mail <SortIcon sort={sort} k="email" />
                         </button>
                       </th>
-                      <th className="w-20 px-3 py-2" />
+                      <th className="w-28 px-3 py-2" />
                     </tr>
                   </thead>
                   <tbody className="divide-line divide-y">
@@ -223,6 +236,14 @@ export default function ArtistsPage() {
                           {a.email}
                         </td>
                         <td className="px-2 py-1 text-right whitespace-nowrap">
+                          <Link
+                            href={`/artists/${a.id}`}
+                            className="text-muted hover:text-fg hover:bg-hover inline-grid size-7 place-items-center rounded-md align-middle"
+                            aria-label="Statistiques"
+                            title="Statistiques"
+                          >
+                            <BarChart3 className="size-4" />
+                          </Link>
                           <Button variant="ghost" size="icon-sm" onClick={() => setEditing(a)} aria-label="Modifier">
                             <Pencil />
                           </Button>

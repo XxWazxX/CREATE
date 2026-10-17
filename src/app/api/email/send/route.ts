@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hashToken, newTrackingToken } from "@/lib/analytics/tracking-server";
 import { mailProvider, sendEmail } from "@/lib/email/mailer";
 import { renderProjectEmail } from "@/lib/email/template";
 import { createClient } from "@/lib/supabase/server";
@@ -80,41 +81,58 @@ export async function POST(req: Request) {
   const { data: known } = await supabase.from("artists").select("artist_name, email").in("email", recipients);
   const artistName = new Map((known ?? []).map((a) => [a.email as string, a.artist_name as string]));
 
-  const { html, text } = renderProjectEmail({
-    projectName: project.name,
-    trackCount: titles.length,
-    trackTitles: titles,
-    message,
-    signature: settings.signature,
-    instagram: settings.instagram,
-    senderName,
-    listenUrl: `${base}/p/${share.token}`,
-    design,
-    coverUrl: project.cover_path ? `${base}/api/p/${share.token}/cover` : null,
-    logoUrl: design?.logoPath ? `${base}/api/p/${share.token}/logo` : null,
-    passwordProtected: !!share.password_hash,
-    expiresLabel: share.expires_at
-      ? new Date(share.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
-      : null,
-  });
+  const emailFor = (listenUrl: string, trackingPixelUrl: string | null) =>
+    renderProjectEmail({
+      projectName: project.name,
+      trackCount: titles.length,
+      trackTitles: titles,
+      message,
+      signature: settings.signature,
+      instagram: settings.instagram,
+      senderName,
+      listenUrl,
+      trackingPixelUrl,
+      design,
+      coverUrl: project.cover_path ? `${base}/api/p/${share.token}/cover` : null,
+      logoUrl: design?.logoPath ? `${base}/api/p/${share.token}/logo` : null,
+      passwordProtected: !!share.password_hash,
+      expiresLabel: share.expires_at
+        ? new Date(share.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+        : null,
+    });
+  // Copy kept in the history: plain link, no pixel (viewing it in "Envoyés" must not count as an open).
+  const archived = emailFor(`${base}/p/${share.token}`, null).html;
 
   const results: { recipient: string; ok: boolean; error?: string }[] = [];
   for (const recipient of recipients) {
-    const { data: row } = await supabase
+    // Each email has its own random token: tracked link (/l/…) + open pixel (/api/t/o/…).
+    const tracking = newTrackingToken();
+    const row0 = {
+      project_id: project.id,
+      project_share_id: share.id,
+      track_title: project.name,
+      recipient,
+      subject,
+      message,
+      html: archived,
+      options: { kind: "project", artist_name: artistName.get(recipient) ?? null },
+      status: "queued",
+    };
+    let tracked = true;
+    const first = await supabase
       .from("email_sends")
-      .insert({
-        project_id: project.id,
-        project_share_id: share.id,
-        track_title: project.name,
-        recipient,
-        subject,
-        message,
-        html,
-        options: { kind: "project", artist_name: artistName.get(recipient) ?? null },
-        status: "queued",
-      })
+      .insert({ ...row0, tracking_token_hash: hashToken(tracking) })
       .select("id")
       .single();
+    let row = first.data;
+    if (first.error && /tracking_token_hash/.test(first.error.message)) {
+      // Analytics migration (0004) not applied yet: send untracked rather than not at all.
+      tracked = false;
+      ({ data: row } = await supabase.from("email_sends").insert(row0).select("id").single());
+    }
+    const { html, text } = tracked
+      ? emailFor(`${base}/l/${tracking}`, `${base}/api/t/o/${tracking}`)
+      : emailFor(`${base}/p/${share.token}`, null);
 
     let error: string | null = null;
     let providerId: string | null = null;

@@ -1,12 +1,14 @@
 "use client";
 
-import { CheckCircle2, Eye, Mail, Search, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, Mail, MousePointerClick, Search, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { Skeleton, Spinner } from "@/components/ui/spinner";
+import { sendStats, type SendStats } from "@/lib/analytics/stats";
+import { useAnalytics } from "@/lib/data/analytics";
 import { fetchSendHtml, useSends } from "@/lib/data/library";
 import type { EmailSend } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
@@ -32,11 +34,11 @@ function who(s: EmailSend) {
 }
 
 /**
- * "Envoyé" means accepted by the mail provider — never "delivered". Link opens are
- * only shown when that link went to this one recipient (otherwise they can't be
- * attributed to anyone in particular).
+ * "Envoyé" means accepted by the mail provider — never "delivered". Tracked emails
+ * show their own detected opens / clicks; older ones fall back to the link's page
+ * views, only when that link went to this one recipient.
  */
-function Status({ send, attributable }: { send: EmailSend; attributable: boolean }) {
+function Status({ send, attributable, stats }: { send: EmailSend; attributable: boolean; stats: SendStats | null }) {
   if (send.status === "failed")
     return (
       <span className="text-danger inline-flex items-center gap-1 text-xs" title={send.error ?? ""}>
@@ -49,13 +51,37 @@ function Status({ send, attributable }: { send: EmailSend; attributable: boolean
         <Spinner className="size-3" /> Envoi
       </span>
     );
+  if (stats?.clicks)
+    return (
+      <span
+        className="text-ok inline-flex items-center gap-1 text-xs"
+        title={`Dernier clic ${relativeDate(stats.lastClick)}`}
+      >
+        <MousePointerClick className="size-3.5" /> Clic détecté{stats.clicks > 1 ? ` ×${stats.clicks}` : ""}
+      </span>
+    );
+  if (stats?.opens)
+    return (
+      <span
+        className="text-ok inline-flex items-center gap-1 text-xs"
+        title={`Première ${relativeDate(stats.firstOpen)} · dernière ${relativeDate(stats.lastOpen)}`}
+      >
+        <Eye className="size-3.5" /> Ouverture détectée{stats.opens > 1 ? ` ×${stats.opens}` : ""}
+      </span>
+    );
+  if (stats)
+    return (
+      <span className="text-muted inline-flex items-center gap-1 text-xs" title="Aucune ouverture détectée">
+        <CheckCircle2 className="size-3.5" /> Envoyé
+      </span>
+    );
   if (attributable && send.share && send.share.view_count > 0)
     return (
       <span
         className="text-ok inline-flex items-center gap-1 text-xs"
         title={`Dernière ouverture ${relativeDate(send.share.last_viewed_at)}`}
       >
-        <Eye className="size-3.5" /> Ouvert{send.share.view_count > 1 ? ` ×${send.share.view_count}` : ""}
+        <Eye className="size-3.5" /> Lien ouvert{send.share.view_count > 1 ? ` ×${send.share.view_count}` : ""}
         {send.share.play_count ? ` · ${send.share.play_count} écoute${send.share.play_count > 1 ? "s" : ""}` : ""}
       </span>
     );
@@ -68,6 +94,13 @@ function Status({ send, attributable }: { send: EmailSend; attributable: boolean
 
 export default function SentPage() {
   const { data: sends, isLoading } = useSends();
+  const { data: analytics } = useAnalytics();
+  // Detected opens / clicks of tracked emails (null for untracked or before the migration).
+  const statsOf = (id: string): SendStats | null => {
+    const row = analytics?.sends.find((x) => x.id === id);
+    if (!row?.tracked) return null;
+    return sendStats(analytics!.emailEvents.filter((e) => e.email_send_id === id));
+  };
   const [q, setQ] = useState("");
   const [viewing, setViewing] = useState<EmailSend | null>(null);
   const openDialog = useUI((s) => s.openDialog);
@@ -167,7 +200,7 @@ export default function SentPage() {
                       {s.recipient} · {s.subject}
                     </p>
                   </div>
-                  <Status send={s} attributable={attributable(s)} />
+                  <Status send={s} attributable={attributable(s)} stats={statsOf(s.id)} />
                   <span className="text-faint hidden w-24 text-right text-xs sm:block">
                     {new Date(s.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
@@ -181,6 +214,7 @@ export default function SentPage() {
         <SentViewer
           send={viewing}
           attributable={attributable(viewing)}
+          stats={statsOf(viewing.id)}
           onClose={() => setViewing(null)}
           onResend={() => {
             setViewing(null);
@@ -195,11 +229,13 @@ export default function SentPage() {
 function SentViewer({
   send,
   attributable,
+  stats,
   onClose,
   onResend,
 }: {
   send: EmailSend;
   attributable: boolean;
+  stats: SendStats | null;
   onClose: () => void;
   onResend: () => void;
 }) {
@@ -221,7 +257,7 @@ function SentViewer({
       footer={
         <>
           <span className="mr-auto">
-            <Status send={send} attributable={attributable} />
+            <Status send={send} attributable={attributable} stats={stats} />
           </span>
           {send.project_id ? (
             <button onClick={onResend} className="text-muted hover:text-fg text-[13px]">

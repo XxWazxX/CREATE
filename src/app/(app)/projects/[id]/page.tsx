@@ -1,9 +1,22 @@
 "use client";
 
-import { ChevronRight, Disc3, Folder, FolderPlus, ImagePlus, MoreHorizontal, Share2, Upload, X } from "lucide-react";
+import {
+  BarChart3,
+  ChevronRight,
+  Disc3,
+  Folder,
+  FolderPlus,
+  ImagePlus,
+  ListMusic,
+  MoreHorizontal,
+  Share2,
+  Upload,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
+import { ProjectAnalytics } from "@/components/analytics/project-analytics";
 import { LibraryView } from "@/components/track/library-view";
 import {
   pickProjectCover,
@@ -33,6 +46,7 @@ export default function ProjectPage() {
   const openDialog = useUI((s) => s.openDialog);
   const project = projects?.find((p) => p.id === id);
   const preset = useMemo<Filters>(() => ({ projectId: id }), [id]);
+  const analytics = useSearchParams().get("vue") === "analytics";
 
   const { crumbs, children, ownTracks } = useMemo(() => {
     const list = projects ?? [];
@@ -76,6 +90,43 @@ export default function ProjectPage() {
   const Icon = project.kind === "folder" ? Folder : Disc3;
   const total = ownTracks.reduce((s, t) => s + (t.duration ?? 0), 0);
 
+  const tabs = (
+    <div className="border-line flex rounded-lg border p-0.5">
+      {[
+        { on: !analytics, href: `/projects/${id}`, icon: ListMusic, label: "Prods" },
+        { on: analytics, href: `/projects/${id}?vue=analytics`, icon: BarChart3, label: "Analytics" },
+      ].map((t) => (
+        <Link
+          key={t.label}
+          href={t.href}
+          className={cn(
+            "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs",
+            t.on ? "bg-hover text-fg" : "text-muted hover:text-fg",
+          )}
+          aria-current={t.on ? "page" : undefined}
+        >
+          <t.icon className="size-3.5" /> {t.label}
+        </Link>
+      ))}
+    </div>
+  );
+
+  if (analytics) {
+    return (
+      <div className="pb-10">
+        <ProjectHeader project={project} crumbs={crumbs}>
+          <div className="flex items-center gap-2">
+            {tabs}
+            <Button variant="primary" onClick={() => openDialog({ type: "project-share", projectId: id })}>
+              <Share2 /> Partager
+            </Button>
+          </div>
+        </ProjectHeader>
+        <ProjectAnalytics projectId={id} projectName={project.name} />
+      </div>
+    );
+  }
+
   return (
     <LibraryView
       key={id}
@@ -86,7 +137,8 @@ export default function ProjectPage() {
       header={
         <>
           <ProjectHeader project={project} crumbs={crumbs}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {tabs}
               <span className="text-muted text-[13px]">
                 {ownTracks.length} morceau{ownTracks.length === 1 ? "" : "x"}
                 {total ? ` · ${formatDuration(total)}` : ""}
