@@ -27,7 +27,7 @@ import { Waveform } from "@/components/ui/waveform";
 import { toggleFavorite, usePeaks, useTracks } from "@/lib/data/tracks";
 import { shortKey } from "@/lib/music";
 import { currentTime, usePlayer } from "@/lib/player/store";
-import { cn, errorMessage, formatBpm, formatDuration } from "@/lib/utils";
+import { cn, errorMessage, formatBpm, formatDuration, DEFAULT_ARTIST } from "@/lib/utils";
 
 function Meta({ bpm, k }: { bpm: number | null; k: string | null }) {
   const parts = [bpm ? `${formatBpm(bpm)} BPM` : null, k ? shortKey(k) : null].filter(Boolean);
@@ -308,7 +308,7 @@ export function PlayerBar() {
               ) : null}
             </Link>
             <p className="text-muted truncate text-xs">
-              {current.artist || "Artiste inconnu"} <Meta bpm={current.bpm} k={current.key} />
+              {current.artist || DEFAULT_ARTIST} <Meta bpm={current.bpm} k={current.key} />
             </p>
           </div>
           <FavButton />
@@ -330,7 +330,7 @@ export function PlayerBar() {
           <Cover path={current.coverPath} seed={current.trackId} className="size-11" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium">{current.title}</p>
-            <p className="text-muted truncate text-xs">{current.artist || "Artiste inconnu"}</p>
+            <p className="text-muted truncate text-xs">{current.artist || DEFAULT_ARTIST}</p>
           </div>
           <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
             <FavButton />
@@ -377,7 +377,7 @@ function MobileFullPlayer({ onClose }: { onClose: () => void }) {
           <div className="min-w-0">
             <p className="truncate text-xl font-semibold">{current.title}</p>
             <p className="text-muted truncate text-sm">
-              {current.artist || "Artiste inconnu"} <Meta bpm={current.bpm} k={current.key} />
+              {current.artist || DEFAULT_ARTIST} <Meta bpm={current.bpm} k={current.key} />
             </p>
           </div>
           <FavButton size="lg" />

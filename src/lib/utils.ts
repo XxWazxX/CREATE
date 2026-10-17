@@ -131,3 +131,6 @@ export function errorMessage(e: unknown): string {
 export function safeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|]+/g, "-").trim() || "track";
 }
+
+/** Artist set on every imported track (and shown when a track has none). */
+export const DEFAULT_ARTIST = "WAZ";

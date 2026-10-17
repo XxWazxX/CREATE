@@ -9,7 +9,15 @@ import { invalidateTrack, mapTrack, patchTrackCache, refreshTrack, upsertTrackCa
 import { normalizeKey, guessStemKind, type StemKind } from "@/lib/music";
 import { currentUserId, supabase } from "@/lib/supabase/client";
 import { BUCKET, paths, type TrackFolder } from "@/lib/storage";
-import { audioMime, errorMessage, fileExtension, isAudioFile, isLossless, titleFromFilename } from "@/lib/utils";
+import {
+  audioMime,
+  DEFAULT_ARTIST,
+  errorMessage,
+  fileExtension,
+  isAudioFile,
+  isLossless,
+  titleFromFilename,
+} from "@/lib/utils";
 import { parseFilenameMeta } from "@/lib/filename-meta";
 import { tusUpload } from "./tus";
 
@@ -195,12 +203,12 @@ export async function importFiles(files: File[], opts: { projectId?: string | nu
       continue;
     }
     let row = data as Record<string, unknown>;
-    if (meta.bpm != null || meta.key) {
-      const patch = { bpm: meta.bpm, key: meta.key };
-      const { data: updated } = await sb.from("tracks").update(patch).eq("id", trackId).select("*").single();
-      await sb.from("track_versions").update(patch).eq("id", versionId);
-      if (updated) row = updated as Record<string, unknown>;
-    }
+    // Every import is credited to WAZ; BPM / key come from the filename when present.
+    const hasMeta = meta.bpm != null || !!meta.key;
+    const patch = { artist: DEFAULT_ARTIST, ...(hasMeta ? { bpm: meta.bpm, key: meta.key } : {}) };
+    const { data: updated } = await sb.from("tracks").update(patch).eq("id", trackId).select("*").single();
+    if (hasMeta) await sb.from("track_versions").update({ bpm: meta.bpm, key: meta.key }).eq("id", versionId);
+    if (updated) row = updated as Record<string, unknown>;
     upsertTrackCache(mapTrack({ ...row, track_tags: [] }));
     created.push(trackId);
 
