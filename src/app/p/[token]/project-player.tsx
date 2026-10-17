@@ -271,24 +271,22 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             </div>
           ) : null}
 
-          {/* Main action */}
-          <div className="mt-8 flex flex-col items-center gap-3">
-            {permissions.streaming && tracks.some((t) => t.streamUrl) ? (
-              <button
-                onClick={toggle}
-                className="inline-flex h-14 w-full max-w-sm items-center justify-center gap-3 rounded-xl bg-white text-[13px] font-bold tracking-[0.22em] text-[#0b0b0c] uppercase transition hover:bg-white/90"
-              >
-                {playing ? (
-                  <Pause className="size-4" fill="currentColor" />
-                ) : (
-                  <Play className="size-4" fill="currentColor" />
-                )}
-                {playing ? "Pause" : "Écouter les prods"}
-              </button>
-            ) : (
-              <p className="text-muted text-[13px]">L’écoute en ligne est désactivée pour ce lien.</p>
-            )}
-            <p className="text-[12px] text-[#9b9ba3]">Lien sécurisé • Accès privé • Écoute en haute qualité</p>
+          {!permissions.streaming ? (
+            <p className="mt-6 text-center text-[13px] text-[#9b9ba3]">
+              L’écoute en ligne est désactivée pour ce lien.
+            </p>
+          ) : null}
+
+          {/* Studio photo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={brand.heroUrl} alt="" className="mt-8 aspect-[860/272] w-full rounded-xl object-cover" />
+
+          {/* Prods */}
+          <div className="mt-8 mb-3 flex items-center justify-between gap-3">
+            <p className="text-[11px] tracking-[0.2em] text-[#6b6b73] uppercase">
+              {project.name} · {tracks.length} prod{tracks.length > 1 ? "s" : ""}
+              {total ? ` · ${Math.round(total / 60)} min` : ""}
+            </p>
             {allDownloads.length === 1 ? (
               <button
                 onClick={() => {
@@ -301,7 +299,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
               </button>
             ) : allDownloads.length > 1 ? (
               <DropdownMenu
-                align="center"
+                align="end"
                 entries={allDownloads}
                 trigger={
                   <button className="inline-flex items-center gap-1.5 text-[12px] text-[#9b9ba3] hover:text-white">
@@ -311,16 +309,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
               />
             ) : null}
           </div>
-
-          {/* Studio photo */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brand.heroUrl} alt="" className="mt-8 aspect-[860/272] w-full rounded-xl object-cover" />
-
-          {/* Prods */}
-          <p className="mt-8 mb-3 text-[11px] tracking-[0.2em] text-[#6b6b73] uppercase">
-            {project.name} · {tracks.length} prod{tracks.length > 1 ? "s" : ""}
-            {total ? ` · ${Math.round(total / 60)} min` : ""}
-          </p>
           <ol className="divide-y divide-[#26262a] overflow-hidden rounded-xl border border-[#26262a]">
             {tracks.length === 0 ? (
               <li className="px-4 py-10 text-center text-sm text-[#9b9ba3]">Ce projet est vide pour l’instant.</li>
