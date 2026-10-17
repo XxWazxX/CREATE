@@ -30,7 +30,6 @@ type Permissions = { streaming: boolean; mp3: boolean; wav: boolean; stems: bool
 /** Owner branding shown on the page (same as the Studio email). */
 export type Brand = {
   name: string;
-  message: string;
   logoUrl: string | null;
   instagram: string | null;
   heroUrl: string;
@@ -231,8 +230,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   ];
 
   const total = tracks.reduce((s, t) => s + (t.duration ?? 0), 0);
-  const message = brand.message.trim();
-
   return (
     <TooltipProvider>
       <div className={cn("min-h-dvh bg-[#0b0b0c] px-3 py-6 md:py-12", current && "pb-44 md:pb-36")}>
@@ -259,17 +256,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
               </>
             )}
           </header>
-
-          {/* Message */}
-          {message ? (
-            <div className="mx-auto mt-8 max-w-xl space-y-3 text-[15px] leading-relaxed text-white md:text-[17px]">
-              {message.split(/\n{2,}/).map((p, i) => (
-                <p key={i} className="whitespace-pre-line">
-                  {p}
-                </p>
-              ))}
-            </div>
-          ) : null}
 
           {!permissions.streaming ? (
             <p className="mt-6 text-center text-[13px] text-[#9b9ba3]">

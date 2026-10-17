@@ -73,11 +73,10 @@ async function Content({ params }: { params: PageProps<"/p/[token]">["params"] }
   );
 }
 
-/** Name, default message, logo and Instagram of the link's owner (public, non-sensitive settings only). */
+/** Name, logo and Instagram of the link's owner (public, non-sensitive settings only). */
 async function ownerBrand(shareId: string): Promise<Brand> {
   const fallback: Brand = {
     name: "WAZ",
-    message: DEFAULT_SETTINGS.email.defaultMessage,
     logoUrl: null,
     instagram: null,
     heroUrl: "/brand/studio.jpg",
@@ -96,7 +95,6 @@ async function ownerBrand(shareId: string): Promise<Brand> {
     const logoPath = settings?.emailDesign?.logoPath ?? null;
     return {
       name: email.fromName || profile?.display_name || fallback.name,
-      message: email.defaultMessage,
       logoUrl: logoPath ? await signedUrl(logoPath, 60 * 60 * 6) : null,
       instagram: instagramHandle(email.instagram),
       heroUrl: fallback.heroUrl,
