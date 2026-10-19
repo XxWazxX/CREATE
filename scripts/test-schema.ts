@@ -415,6 +415,35 @@ async function main() {
   const afterDelete = await as(A, "select count(*)::int n from public.listening_plays");
   check("analytics: deleting a track removes its listening data", afterDelete.rows[0].n === 1, afterDelete.rows[0]);
 
+  // Artist folders (applied after artists exist: the one-time "RAP US" step must pick them up)
+  await db.exec(migration("0005_artist_folders.sql"));
+  const rapUs = await as(
+    A,
+    "select f.name, (select count(*)::int from public.artists a where a.folder_id = f.id) n from public.artist_folders f",
+  );
+  check(
+    "folders: existing contacts moved into RAP US",
+    rapUs.rows.length === 1 && rapUs.rows[0].name === "RAP US" && rapUs.rows[0].n === 1,
+    rapUs.rows,
+  );
+  const foldersB = await as(B, "select id from public.artist_folders");
+  check("folders: each owner gets their own RAP US (RLS)", foldersB.rows.length === 1);
+  check(
+    "folders: same folder name twice is refused",
+    await refused(as(A, "insert into public.artist_folders (name) values ('RAP US')")),
+  );
+  check(
+    "folders: can't put my artist in another owner's folder",
+    await refused(as(A, "update public.artists set folder_id = $1", [foldersB.rows[0].id])),
+  );
+  await as(A, "delete from public.artist_folders");
+  const kept = await as(A, "select count(*)::int n, count(folder_id)::int f from public.artists");
+  check("folders: deleting a folder keeps its artists", kept.rows[0].n === 1 && kept.rows[0].f === 0, kept.rows[0]);
+  await db.exec("set role anon;");
+  const anonFolders = await refused(db.query("select count(*) from public.artist_folders"));
+  await db.exec("reset role;");
+  check("folders: anonymous visitors can't read them", anonFolders);
+
   console.log(failures ? `\n${failures} check(s) failed` : "\nAll schema checks passed");
   process.exit(failures ? 1 : 0);
 }

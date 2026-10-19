@@ -15,7 +15,7 @@ import {
 } from "@/lib/artists/parse";
 import { importArtists } from "@/lib/data/artists";
 import { hasType } from "@/lib/dnd";
-import type { Artist } from "@/lib/types";
+import type { Artist, ArtistFolder } from "@/lib/types";
 import { cn, errorMessage } from "@/lib/utils";
 
 export const SPREADSHEET_ACCEPT =
@@ -40,7 +40,19 @@ async function readSpreadsheet(file: File): Promise<Sheet[]> {
 
 const colLabel = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : `C${i + 1}`);
 
-export function ImportArtistsDialog({ existing, onClose }: { existing: Artist[]; onClose: () => void }) {
+export function ImportArtistsDialog({
+  existing,
+  folders,
+  defaultFolder,
+  onClose,
+}: {
+  existing: Artist[];
+  /** null: folders unavailable (migration not applied). */
+  folders: ArtistFolder[] | null;
+  defaultFolder: string | null;
+  onClose: () => void;
+}) {
+  const [folderId, setFolderId] = useState<string>(defaultFolder ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
@@ -113,7 +125,7 @@ export function ImportArtistsDialog({ existing, onClose }: { existing: Artist[];
       const todo = result.entries.filter(
         (e) => !existingByEmail.has(e.email) || (mode === "update" && renamed.includes(e)),
       );
-      await importArtists(todo, mode);
+      await importArtists(todo, mode, folders ? folderId || null : null);
       toast.success(
         [
           fresh ? `${fresh} artiste${fresh > 1 ? "s" : ""} ajouté${fresh > 1 ? "s" : ""}` : null,
@@ -275,6 +287,23 @@ export function ImportArtistsDialog({ existing, onClose }: { existing: Artist[];
               </select>
             </div>
           </div>
+          {folders ? (
+            <div>
+              <Label>Ranger dans le dossier</Label>
+              <select
+                value={folderId}
+                onChange={(e) => setFolderId(e.target.value)}
+                className="border-line bg-raised h-9 w-full rounded-lg border px-2 text-[13px] outline-none sm:w-72"
+              >
+                <option value="">Sans dossier</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <label className="text-muted flex items-center gap-2 text-[12.5px]">
             <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
             La première ligne contient les titres des colonnes

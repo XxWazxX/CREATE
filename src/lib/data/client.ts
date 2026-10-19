@@ -29,6 +29,7 @@ export const qk = {
   trash: ["trash"] as const,
   sends: ["sends"] as const,
   artists: ["artists"] as const,
+  artistFolders: ["artist-folders"] as const,
   profile: ["profile"] as const,
   projectShares: (projectId: string) => ["project-shares", projectId] as const,
   storage: ["storage"] as const,

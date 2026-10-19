@@ -4,7 +4,7 @@ import { Check, Search, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { ARTIST_EMAIL_RE, splitEmails } from "@/lib/artists/parse";
-import { filterArtists, useArtists } from "@/lib/data/artists";
+import { filterArtists, useArtistFolders, useArtists } from "@/lib/data/artists";
 import { cn } from "@/lib/utils";
 
 const MAX_SHOWN = 100;
@@ -34,9 +34,15 @@ export function RecipientPicker({
   const nameOf = useMemo(() => new Map(artists.map((a) => [a.email, a.artist_name])), [artists]);
 
   const query = pending.trim();
-  const results = useMemo(() => (query || browse ? filterArtists(artists, query) : []), [artists, query, browse]);
+  const { data: folderState } = useArtistFolders();
+  const folders = folderState?.folders ?? [];
+  /** Browse one folder (e.g. "RAP US") — "" = every artist. */
+  const [folder, setFolder] = useState("");
+  const pool = useMemo(() => (folder ? artists.filter((a) => a.folder_id === folder) : artists), [artists, folder]);
+  const results = useMemo(() => (query || browse ? filterArtists(pool, query) : []), [pool, query, browse]);
   const shown = results.slice(0, MAX_SHOWN);
-  const allShownSelected = shown.length > 0 && shown.every((a) => selected.has(a.email));
+  // "Select all" takes every result (a whole folder), not only the rows displayed.
+  const allSelected = results.length > 0 && results.every((a) => selected.has(a.email));
 
   const add = (emails: string[]) => onChange([...new Set([...value, ...emails.map((e) => e.toLowerCase())])]);
   const remove = (email: string) => onChange(value.filter((e) => e !== email));
@@ -154,6 +160,26 @@ export function RecipientPicker({
         ) : null}
       </div>
 
+      {(query || browse) && folders.length ? (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {[{ id: "", name: "Tous" }, ...folders].map((f) => (
+            <button
+              key={f.id || "all"}
+              type="button"
+              onClick={() => setFolder(f.id)}
+              className={cn(
+                "h-6 rounded-md border px-2 text-[11.5px]",
+                folder === f.id ? "border-line-strong bg-hover text-fg" : "border-line text-muted hover:text-fg",
+              )}
+            >
+              {f.name}
+              {f.id ? (
+                <span className="text-faint ml-1">{artists.filter((a) => a.folder_id === f.id).length}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {query || browse ? (
         <div className="border-line mt-2 overflow-hidden rounded-lg border">
           {shown.length ? (
@@ -161,18 +187,18 @@ export function RecipientPicker({
               <div className="border-line bg-panel flex items-center justify-between border-b px-3 py-1.5 text-[11.5px]">
                 <span className="text-faint">
                   {results.length} artiste{results.length > 1 ? "s" : ""}
-                  {results.length > MAX_SHOWN ? ` · ${MAX_SHOWN} affichés, affine la recherche` : ""}
+                  {results.length > MAX_SHOWN ? ` · ${MAX_SHOWN} affichés` : ""}
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    allShownSelected
-                      ? onChange(value.filter((e) => !shown.some((a) => a.email === e)))
-                      : add(shown.map((a) => a.email))
-                  }
+                  onClick={() => {
+                    const emails = new Set(results.map((a) => a.email));
+                    if (allSelected) onChange(value.filter((e) => !emails.has(e)));
+                    else add([...emails]);
+                  }}
                   className="text-muted hover:text-fg"
                 >
-                  {allShownSelected ? "Tout désélectionner" : "Tout sélectionner"}
+                  {allSelected ? "Tout désélectionner" : `Tout sélectionner (${results.length})`}
                 </button>
               </div>
               <ul className="max-h-56 overflow-y-auto">

@@ -6,6 +6,10 @@ import {
   BarChart3,
   Download,
   FileSpreadsheet,
+  Folder,
+  FolderInput,
+  FolderPlus,
+  MoreHorizontal,
   Pencil,
   Plus,
   Search,
@@ -20,10 +24,22 @@ import { ImportArtistsDialog } from "@/components/artists/import-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
+import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { Skeleton } from "@/components/ui/spinner";
-import { createArtist, deleteArtists, filterArtists, updateArtist, useArtists } from "@/lib/data/artists";
-import type { Artist } from "@/lib/types";
+import {
+  createArtist,
+  createArtistFolder,
+  deleteArtistFolder,
+  deleteArtists,
+  filterArtists,
+  moveArtists,
+  renameArtistFolder,
+  updateArtist,
+  useArtistFolders,
+  useArtists,
+} from "@/lib/data/artists";
+import type { Artist, ArtistFolder } from "@/lib/types";
 import { confirm } from "@/lib/ui-store";
 import { cn, errorMessage } from "@/lib/utils";
 
@@ -31,13 +47,13 @@ type SortKey = "artist_name" | "email";
 
 const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
 
-async function exportExcel(list: Artist[]) {
+async function exportExcel(list: Artist[], name = "artistes") {
   const XLSX = await import("xlsx");
   const ws = XLSX.utils.aoa_to_sheet([["Nom de l'artiste", "E-mail"], ...list.map((a) => [a.artist_name, a.email])]);
   ws["!cols"] = [{ wch: 32 }, { wch: 40 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Artistes");
-  XLSX.writeFile(wb, `artistes-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `${name.replace(/[\\/:*?"<>|]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 export default function ArtistsPage() {
@@ -47,13 +63,30 @@ export default function ArtistsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Artist | "new" | null>(null);
   const [importing, setImporting] = useState(false);
+  const { data: folderState } = useArtistFolders();
+  const folders = useMemo(() => folderState?.folders ?? [], [folderState]);
+  /** "all", "none" (no folder) or a folder id. */
+  const [folder, setFolder] = useState<string>("all");
+  const [folderDialog, setFolderDialog] = useState<{ folder: ArtistFolder | null; moveIds?: string[] } | null>(null);
+  const current = folders.find((f) => f.id === folder) ?? null;
+  const inView = useMemo(
+    () =>
+      folder === "all"
+        ? artists
+        : folder === "none"
+          ? artists.filter((a) => !a.folder_id || !folders.some((f) => f.id === a.folder_id))
+          : artists.filter((a) => a.folder_id === folder),
+    [artists, folders, folder],
+  );
+  const countIn = (id: string) => artists.filter((a) => a.folder_id === id).length;
+  const unfiled = artists.filter((a) => !a.folder_id || !folders.some((f) => f.id === a.folder_id)).length;
 
   const visible = useMemo(
     () =>
-      filterArtists(artists, q)
+      filterArtists(inView, q)
         .slice()
         .sort((a, b) => sort.dir * collator.compare(a[sort.key], b[sort.key]) || collator.compare(a.email, b.email)),
-    [artists, q, sort],
+    [inView, q, sort],
   );
   // Selection only counts rows that still exist.
   const chosen = artists.filter((a) => selected.has(a.id));
@@ -100,6 +133,49 @@ export default function ArtistsPage() {
     }
   };
 
+  const move = async (ids: string[], target: ArtistFolder | null) => {
+    try {
+      await moveArtists(ids, target?.id ?? null);
+      setSelected(new Set());
+      toast.success(
+        target
+          ? `${ids.length} artiste${ids.length > 1 ? "s" : ""} déplacé${ids.length > 1 ? "s" : ""} dans « ${target.name} »`
+          : `${ids.length} artiste${ids.length > 1 ? "s" : ""} retiré${ids.length > 1 ? "s" : ""} du dossier`,
+      );
+    } catch (e) {
+      toast.error("Déplacement impossible", { description: errorMessage(e) });
+    }
+  };
+
+  const moveMenu = (ids: string[]): MenuEntry[] => [
+    { type: "label", label: "Déplacer vers" },
+    ...folders.map((f) => ({ label: f.name, icon: Folder, onSelect: () => void move(ids, f) })),
+    { label: "Nouveau dossier…", icon: FolderPlus, onSelect: () => setFolderDialog({ folder: null, moveIds: ids }) },
+    ...(folders.length
+      ? [{ type: "separator" as const }, { label: "Retirer du dossier", onSelect: () => void move(ids, null) }]
+      : []),
+  ];
+
+  const removeFolder = async (f: ArtistFolder) => {
+    const n = countIn(f.id);
+    const ok = await confirm({
+      title: `Supprimer le dossier « ${f.name} » ?`,
+      body: n
+        ? `Les ${n} artiste${n > 1 ? "s" : ""} qu’il contient restent dans ta base, sans dossier.`
+        : "Le dossier est vide.",
+      confirmLabel: "Supprimer le dossier",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteArtistFolder(f.id);
+      setFolder("all");
+      toast.success("Dossier supprimé");
+    } catch (e) {
+      toast.error("Suppression impossible", { description: errorMessage(e) });
+    }
+  };
+
   const sortBy = (key: SortKey) => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }));
 
   return (
@@ -110,7 +186,7 @@ export default function ArtistsPage() {
           error
             ? " "
             : artists.length
-              ? `${artists.length} contact${artists.length > 1 ? "s" : ""}`
+              ? `${current ? `${current.name} · ` : ""}${inView.length} contact${inView.length > 1 ? "s" : ""}`
               : "Ta base de contacts"
         }
         actions={
@@ -118,7 +194,7 @@ export default function ArtistsPage() {
             <Button
               variant="ghost"
               disabled={!artists.length}
-              onClick={() => void exportExcel(chosen.length ? chosen : visible)}
+              onClick={() => void exportExcel(chosen.length ? chosen : visible, current?.name ?? "artistes")}
               title={chosen.length ? "Exporter la sélection" : "Exporter la liste affichée"}
             >
               <Download /> <span className="max-sm:hidden">Exporter Excel</span>
@@ -139,6 +215,57 @@ export default function ArtistsPage() {
         </p>
       ) : (
         <>
+          {folderState?.available ? (
+            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-1 md:px-8">
+              {[
+                { id: "all", label: "Tous", n: artists.length },
+                ...folders.map((f) => ({ id: f.id, label: f.name, n: countIn(f.id) })),
+                ...(unfiled && folders.length ? [{ id: "none", label: "Sans dossier", n: unfiled }] : []),
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setFolder(c.id);
+                    setSelected(new Set());
+                  }}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[13px]",
+                    folder === c.id ? "border-line-strong bg-hover text-fg" : "border-line text-muted hover:text-fg",
+                  )}
+                  aria-pressed={folder === c.id}
+                >
+                  {c.id !== "all" && c.id !== "none" ? <Folder className="size-3.5" /> : null}
+                  {c.label} <span className="text-faint text-xs tabular-nums">{c.n}</span>
+                </button>
+              ))}
+              {current ? (
+                <DropdownMenu
+                  align="start"
+                  entries={[
+                    { label: "Renommer", icon: Pencil, onSelect: () => setFolderDialog({ folder: current }) },
+                    {
+                      label: "Supprimer le dossier",
+                      icon: Trash2,
+                      danger: true,
+                      onSelect: () => void removeFolder(current),
+                    },
+                  ]}
+                  trigger={
+                    <Button variant="ghost" size="icon-sm" aria-label="Options du dossier">
+                      <MoreHorizontal />
+                    </Button>
+                  }
+                />
+              ) : null}
+              <Button variant="ghost" size="sm" onClick={() => setFolderDialog({ folder: null })}>
+                <FolderPlus /> Nouveau dossier
+              </Button>
+            </div>
+          ) : folderState && !folderState.available ? (
+            <p className="text-faint px-4 pb-1 text-xs md:px-8">
+              Dossiers indisponibles : exécute supabase/migrations/0005_artist_folders.sql dans Supabase → SQL Editor.
+            </p>
+          ) : null}
           <div className="bg-bg/95 sticky top-0 z-20 flex flex-wrap items-center gap-2 px-4 py-3 backdrop-blur md:px-8">
             <div className="relative min-w-48 flex-1 md:max-w-80">
               <Search className="text-faint absolute top-2.5 left-3 size-4" />
@@ -166,6 +293,16 @@ export default function ArtistsPage() {
                 <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                   Désélectionner
                 </Button>
+                {folderState?.available ? (
+                  <DropdownMenu
+                    entries={moveMenu(chosen.map((a) => a.id))}
+                    trigger={
+                      <Button variant="secondary" size="sm">
+                        <FolderInput /> Déplacer
+                      </Button>
+                    }
+                  />
+                ) : null}
                 <Button variant="danger" size="sm" onClick={() => void remove(chosen)}>
                   <Trash2 /> Supprimer
                 </Button>
@@ -261,7 +398,11 @@ export default function ArtistsPage() {
                   </tbody>
                 </table>
                 {!visible.length ? (
-                  <p className="text-muted px-4 py-6 text-center text-[13px]">Aucun résultat.</p>
+                  <p className="text-muted px-4 py-6 text-center text-[13px]">
+                    {q
+                      ? "Aucun résultat."
+                      : "Ce dossier est vide : sélectionne des artistes dans « Tous » puis « Déplacer »."}
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -269,8 +410,33 @@ export default function ArtistsPage() {
         </>
       )}
 
-      {editing ? <ArtistDialog artist={editing === "new" ? null : editing} onClose={() => setEditing(null)} /> : null}
-      {importing ? <ImportArtistsDialog existing={artists} onClose={() => setImporting(false)} /> : null}
+      {editing ? (
+        <ArtistDialog
+          artist={editing === "new" ? null : editing}
+          folders={folderState?.available ? folders : null}
+          defaultFolder={current?.id ?? null}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
+      {importing ? (
+        <ImportArtistsDialog
+          existing={artists}
+          folders={folderState?.available ? folders : null}
+          defaultFolder={current?.id ?? null}
+          onClose={() => setImporting(false)}
+        />
+      ) : null}
+      {folderDialog ? (
+        <FolderDialog
+          folder={folderDialog.folder}
+          onClose={() => setFolderDialog(null)}
+          onSaved={(f) => {
+            setFolderDialog(null);
+            if (folderDialog.moveIds) void move(folderDialog.moveIds, f);
+            else setFolder(f.id);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -287,15 +453,27 @@ function Box({ checked, onChange, label }: { checked: boolean; onChange: () => v
   );
 }
 
-function ArtistDialog({ artist, onClose }: { artist: Artist | null; onClose: () => void }) {
+function ArtistDialog({
+  artist,
+  folders,
+  defaultFolder,
+  onClose,
+}: {
+  artist: Artist | null;
+  /** null: folders unavailable (migration not applied). */
+  folders: ArtistFolder[] | null;
+  defaultFolder: string | null;
+  onClose: () => void;
+}) {
   const [name, setName] = useState(artist?.artist_name ?? "");
+  const [folderId, setFolderId] = useState<string>((artist ? artist.folder_id : defaultFolder) ?? "");
   const [email, setEmail] = useState(artist?.email ?? "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
     try {
-      const input = { artist_name: name, email };
+      const input = { artist_name: name, email, ...(folders ? { folder_id: folderId || null } : {}) };
       if (artist) await updateArtist(artist.id, input);
       else await createArtist(input);
       toast.success(artist ? "Artiste modifié" : "Artiste ajouté");
@@ -350,6 +528,24 @@ function ArtistDialog({ artist, onClose }: { artist: Artist | null; onClose: () 
             maxLength={254}
           />
         </div>
+        {folders ? (
+          <div>
+            <Label htmlFor="artist-folder">Dossier</Label>
+            <select
+              id="artist-folder"
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+              className="border-line bg-raised h-9 w-full rounded-lg border px-2 text-[13px] outline-none"
+            >
+              <option value="">Sans dossier</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <button type="submit" hidden />
       </form>
     </Dialog>
@@ -359,4 +555,65 @@ function ArtistDialog({ artist, onClose }: { artist: Artist | null; onClose: () 
 function SortIcon({ sort, k }: { sort: { key: SortKey; dir: 1 | -1 }; k: SortKey }) {
   if (sort.key !== k) return null;
   return sort.dir === 1 ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />;
+}
+
+function FolderDialog({
+  folder,
+  onClose,
+  onSaved,
+}: {
+  folder: ArtistFolder | null;
+  onClose: () => void;
+  onSaved: (f: ArtistFolder) => void;
+}) {
+  const [name, setName] = useState(folder?.name ?? "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (folder) {
+        await renameArtistFolder(folder.id, name);
+        onSaved({ ...folder, name: name.trim() });
+      } else onSaved(await createArtistFolder(name));
+      toast.success(folder ? "Dossier renommé" : "Dossier créé");
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={folder ? "Renommer le dossier" : "Nouveau dossier"}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button variant="primary" onClick={() => void save()} loading={saving} disabled={!name.trim()}>
+            {folder ? "Renommer" : "Créer"}
+          </Button>
+        </>
+      }
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <Label htmlFor="folder-name">Nom du dossier</Label>
+        <Input
+          id="folder-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          placeholder="RAP US"
+        />
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
 }

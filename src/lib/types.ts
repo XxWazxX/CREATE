@@ -142,6 +142,14 @@ export type Artist = {
   artist_name: string;
   email: string;
   created_at: string;
+  /** Folder (e.g. "RAP US"), null when the artist isn't in one. */
+  folder_id: string | null;
+};
+
+export type ArtistFolder = {
+  id: string;
+  name: string;
+  created_at: string;
 };
 
 export type Activity = {
