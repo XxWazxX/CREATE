@@ -36,6 +36,8 @@ async function handle(req: Request, ctx: RouteContext<"/l/[token]">) {
   // ▶ of one prod in the email: open the page on that prod.
   const t = new URL(req.url).searchParams.get("t");
   if (t && /^[0-9a-f-]{36}$/.test(t)) target.searchParams.set("t", t);
+  // Any other link of the email: start the first prod on arrival.
+  else target.searchParams.set("play", "1");
   const res = NextResponse.redirect(target, 302);
   res.headers.set("cache-control", "no-store");
   res.headers.set("referrer-policy", "no-referrer");

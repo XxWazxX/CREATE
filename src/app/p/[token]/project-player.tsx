@@ -107,20 +107,44 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     [tracks, token, tracker],
   );
 
-  // ▶ of one prod in the email → /p/{token}?t={trackId}: open the page on that prod.
+  // Arriving from the email: ?t={trackId} (▶ of one prod) or ?play=1 (any other link)
+  // starts that prod / the first one right away. Browsers may block sound until the
+  // visitor touches the page: then the first tap anywhere starts it (see below).
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("t");
-    if (!t) return;
-    const i = tracks.findIndex((x) => x.id === t && x.streamUrl);
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("t");
+    if (!t && params.get("play") !== "1") return;
+    const i = t ? tracks.findIndex((x) => x.id === t && x.streamUrl) : tracks.findIndex((x) => x.streamUrl);
     if (i < 0) return;
     const timer = window.setTimeout(() => {
+      // Clean URL (a reload doesn't restart anything) — here, so a cancelled run keeps it.
+      params.delete("t");
+      params.delete("play");
+      window.history.replaceState(null, "", window.location.pathname + (params.size ? `?${params}` : ""));
       start(i, { fromEmail: true });
-      document.getElementById(`track-${t}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (t) document.getElementById(`track-${t}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 0);
     return () => window.clearTimeout(timer);
     // Only on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!tapToPlay) return;
+    const onFirstTouch = (e: Event) => {
+      if ((e.target as Element | null)?.closest("button, a, [role=slider], input")) return;
+      const a = audio.current;
+      if (!a) return;
+      setTapToPlay(false);
+      void a.play().catch(() => setTapToPlay(true));
+    };
+    window.addEventListener("pointerdown", onFirstTouch, true);
+    window.addEventListener("keydown", onFirstTouch, true);
+    return () => {
+      window.removeEventListener("pointerdown", onFirstTouch, true);
+      window.removeEventListener("keydown", onFirstTouch, true);
+    };
+  }, [tapToPlay]);
 
   const toggle = useCallback(() => {
     const a = audio.current;
@@ -439,6 +463,19 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
           LIEN PRIVÉ · CREATE
         </p>
 
+        {tapToPlay && !playing && current ? (
+          <button
+            onClick={toggle}
+            className="animate-up fixed top-1/2 left-1/2 z-50 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-2xl border border-[#2b2b31] bg-[#141416]/95 px-8 py-6 text-white shadow-2xl shadow-black/60 backdrop-blur"
+          >
+            <span className="grid size-16 place-items-center rounded-full bg-white text-[#0b0b0c]">
+              <Play className="size-7 translate-x-0.5" fill="currentColor" />
+            </span>
+            <span className="text-[13px] font-semibold tracking-[0.14em] uppercase">{current.title}</span>
+            <span className="text-[12px] text-[#9b9ba3]">Touche l’écran pour lancer l’écoute</span>
+          </button>
+        ) : null}
+
         {zipping ? (
           <div className="animate-up fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-[#2b2b31] bg-[#151518] px-4 py-2 text-[13px] text-white shadow-xl">
             Préparation de « {zipping.label} »{zipping.total ? ` — ${zipping.done}/${zipping.total} fichiers` : "…"}
@@ -517,6 +554,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                       setTime(s);
                     }}
                     height={26}
+                    active={false}
                     className="flex-1"
                   />
                   <span className="w-10 font-mono text-[11px] text-[#6b6b73] tabular-nums">
@@ -555,7 +593,10 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         <audio
           ref={audio}
           preload="none"
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            setPlaying(true);
+            setTapToPlay(false);
+          }}
           onPlaying={(e) => {
             const a = e.currentTarget;
             if (loaded.current)
