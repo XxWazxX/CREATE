@@ -124,24 +124,24 @@ export default function Dashboard() {
           ) : null}
 
           <Section title="Ajouts récents" href="/recent">
-            <TrackList tracks={added} plain />
+            <TrackList tracks={added} plain home />
           </Section>
 
           {played.length ? (
             <Section title="Écoutés récemment">
-              <TrackList tracks={played} plain />
+              <TrackList tracks={played} plain home />
             </Section>
           ) : null}
 
           {modified.length ? (
             <Section title="Modifiés récemment">
-              <TrackList tracks={modified} plain />
+              <TrackList tracks={modified} plain home />
             </Section>
           ) : null}
 
           <Section title="Favoris" href="/favorites">
             {favorites.length ? (
-              <TrackList tracks={favorites} plain />
+              <TrackList tracks={favorites} plain home />
             ) : (
               <p className="text-faint flex items-center gap-2 px-4 text-[13px] md:px-8">
                 <Heart className="size-4" /> Ajoute un morceau en favori pour l’épingler ici.

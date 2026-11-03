@@ -58,9 +58,19 @@ type Props = {
   /** Render without virtualization (short lists, e.g. dashboard) */
   plain?: boolean;
   emptyState?: React.ReactNode;
+  /** Home page lists: no Tags / Ajouté columns, the project shown in their place. */
+  home?: boolean;
 };
 
-export function TrackList({ tracks, sort = null, onSortChange, showProject = true, plain, emptyState }: Props) {
+export function TrackList({
+  tracks,
+  sort = null,
+  onSortChange,
+  showProject = true,
+  plain,
+  emptyState,
+  home = false,
+}: Props) {
   const router = useRouter();
   const { data: projects = [] } = useProjects();
   const { data: tags = [] } = useTags();
@@ -163,9 +173,15 @@ export function TrackList({ tracks, sort = null, onSortChange, showProject = tru
       <SortHeader label="Titre" k="title" sort={sort} onSort={onSortChange} className="flex-1" />
       <SortHeader label="BPM" k="bpm" sort={sort} onSort={onSortChange} className="w-14" />
       <SortHeader label="Tonalité" k="key" sort={sort} onSort={onSortChange} className="w-14" />
-      <span className="hidden w-44 lg:block">Tags</span>
-      {showProject ? <span className="hidden w-32 xl:block">Projet</span> : null}
-      <SortHeader label="Ajouté" k="created_at" sort={sort} onSort={onSortChange} className="hidden w-20 lg:flex" />
+      {home ? (
+        <span className="hidden w-44 lg:block">Projet</span>
+      ) : (
+        <>
+          <span className="hidden w-44 lg:block">Tags</span>
+          {showProject ? <span className="hidden w-32 xl:block">Projet</span> : null}
+          <SortHeader label="Ajouté" k="created_at" sort={sort} onSort={onSortChange} className="hidden w-20 lg:flex" />
+        </>
+      )}
       <SortHeader label="Durée" k="duration" sort={sort} onSort={onSortChange} className="w-12 justify-end" />
       <span className="w-16" />
     </div>
@@ -180,6 +196,7 @@ export function TrackList({ tracks, sort = null, onSortChange, showProject = tru
       project={track.project_id ? projectById.get(track.project_id) : undefined}
       tagById={tagById}
       showProject={showProject}
+      home={home}
       projects={projects}
       queue={tracks}
       onClick={onRowClick}
@@ -256,6 +273,7 @@ type RowProps = {
   project?: Project;
   tagById: Map<string, Tag>;
   showProject: boolean;
+  home: boolean;
   projects: Project[];
   queue: Track[];
   onClick: (e: React.MouseEvent, t: Track, i: number) => void;
@@ -271,6 +289,7 @@ const TrackRow = memo(function TrackRow({
   project,
   tagById,
   showProject,
+  home,
   projects,
   queue,
   onClick,
@@ -382,14 +401,8 @@ const TrackRow = memo(function TrackRow({
           {formatBpm(track.bpm) || "—"}
         </span>
         <span className="text-muted hidden w-14 text-[12.5px] md:block">{shortKey(track.key) || "—"}</span>
-        <div className="hidden w-44 gap-1 overflow-hidden lg:flex">
-          {tags.slice(0, 2).map((t) => (
-            <TagPill key={t.id} tag={t} />
-          ))}
-          {tags.length > 2 ? <span className="text-faint text-[11px]">+{tags.length - 2}</span> : null}
-        </div>
-        {showProject ? (
-          <span className="text-muted hidden w-32 truncate text-[12.5px] xl:block">
+        {home ? (
+          <span className="text-muted hidden w-44 truncate text-[12.5px] lg:block">
             {project ? (
               <Link
                 href={`/projects/${project.id}`}
@@ -399,11 +412,35 @@ const TrackRow = memo(function TrackRow({
                 {project.name}
               </Link>
             ) : (
-              <span className="text-faint">—</span>
+              <span className="text-faint">Sans projet</span>
             )}
           </span>
-        ) : null}
-        <span className="text-muted hidden w-20 text-[12.5px] lg:block">{shortDate(track.created_at)}</span>
+        ) : (
+          <>
+            <div className="hidden w-44 gap-1 overflow-hidden lg:flex">
+              {tags.slice(0, 2).map((t) => (
+                <TagPill key={t.id} tag={t} />
+              ))}
+              {tags.length > 2 ? <span className="text-faint text-[11px]">+{tags.length - 2}</span> : null}
+            </div>
+            {showProject ? (
+              <span className="text-muted hidden w-32 truncate text-[12.5px] xl:block">
+                {project ? (
+                  <Link
+                    href={`/projects/${project.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:text-fg hover:underline"
+                  >
+                    {project.name}
+                  </Link>
+                ) : (
+                  <span className="text-faint">—</span>
+                )}
+              </span>
+            ) : null}
+            <span className="text-muted hidden w-20 text-[12.5px] lg:block">{shortDate(track.created_at)}</span>
+          </>
+        )}
         <span className="tabular text-muted hidden w-12 text-right font-mono text-[12.5px] md:block">
           {formatDuration(track.duration)}
         </span>
