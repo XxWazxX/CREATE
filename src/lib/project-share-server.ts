@@ -159,6 +159,20 @@ export type PublicTrack = {
   stems: { id: string; name: string; kind: string }[];
 };
 
+/**
+ * File played on the public page: always the ORIGINAL upload, untouched (WAV, MP3, FLAC…).
+ * Only AIFF, which most browsers (Chrome, Firefox) cannot play, falls back to the MP3 copy.
+ */
+export function streamPath(t: {
+  file_path: string;
+  preview_path: string | null;
+  mime_type: string | null;
+  original_filename?: string | null;
+}) {
+  const aiff = /aiff/i.test(t.mime_type ?? "") || /\.aiff?$/i.test(t.original_filename ?? t.file_path);
+  return aiff && t.preview_path ? t.preview_path : t.file_path;
+}
+
 export function isLosslessMime(mime: string | null | undefined) {
   return !!mime && /(wav|aiff|flac)/.test(mime);
 }
@@ -207,7 +221,7 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
   const toSign: string[] = [];
   for (const t of files) {
     if (t.cover_path) toSign.push(t.cover_path as string);
-    if (share.allow_streaming) toSign.push(t.preview_path ?? t.file_path);
+    if (share.allow_streaming) toSign.push(streamPath(t));
   }
   const signedMap = new Map<string, string>();
   if (toSign.length) {
@@ -224,7 +238,7 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
     genre: (t.genre as string | null) ?? null,
     duration: (t.duration as number | null) ?? null,
     coverUrl: t.cover_path ? (signedMap.get(t.cover_path as string) ?? null) : null,
-    streamUrl: share.allow_streaming ? (signedMap.get(t.preview_path ?? t.file_path) ?? null) : null,
+    streamUrl: share.allow_streaming ? (signedMap.get(streamPath(t)) ?? null) : null,
     peaks: (versions?.find((v) => v.id === t.current_version_id)?.peaks as number[] | null) ?? null,
     hasMp3: !!t.preview_path || t.mime_type === "audio/mpeg",
     hasWav: isLosslessMime(t.mime_type),

@@ -15,7 +15,6 @@ import {
   TrackInfo,
   useAudioAnalyser,
   useTrackLayers,
-  useTransitionSound,
   type Direction,
   type LoopMode,
 } from "@/components/ui/music-player-widget";
@@ -84,8 +83,8 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const shown = current ?? tracks[playable[0] ?? 0] ?? null;
 
   const { tracker, flushSoon } = useListenTracking(token, permissions.streaming);
-  const { getFrequencyData, getBandEnergy } = useAudioAnalyser(audio);
-  const playTransitionSound = useTransitionSound();
+  // Read-only tap for the visualizer: the audio reaches the speakers unchanged (no effect, no gain).
+  const { getFrequencyData } = useAudioAnalyser(audio);
 
   const dl = (kind: string, trackId?: string) =>
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
@@ -98,7 +97,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
       setError(null);
       // Close the running play before switching tracks.
       tracker.pause(a.currentTime);
-      if (loaded.current && loaded.current !== t.id) playTransitionSound(getBandEnergy(0, 4));
       loaded.current = t.id;
       setDirection(opts.dir ?? (index == null ? null : i > index ? "next" : "prev"));
       setIndex(i);
@@ -116,7 +114,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         void fetch(`/api/p/${token}/play`, { method: "POST" }).catch(() => undefined);
       }
     },
-    [tracks, token, tracker, index, playTransitionSound, getBandEnergy],
+    [tracks, token, tracker, index],
   );
 
   // ▶ of one prod in the email → /p/{token}?t={trackId}: open the page on that prod.
