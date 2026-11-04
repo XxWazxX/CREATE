@@ -1,0 +1,348 @@
+/* Vinyl music player widget (music-player-widget.tsx). Classes prefixed mpw- so
+   they never clash with the app's own styles. */
+
+.mpw-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 36px;
+  width: 100%;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid #26262a;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+    linear-gradient(180deg, #17171a 0%, #111113 100%);
+  box-shadow:
+    0 40px 90px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #ececee;
+}
+
+/* ---------- disc ---------- */
+
+.mpw-mask {
+  position: relative;
+  width: min(280px, 68vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: zoom-in;
+  isolation: isolate;
+  background: #0b0b0c;
+  box-shadow:
+    0 26px 60px -16px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  transition: border-radius 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.mpw-mask.is-zoomed {
+  border-radius: 18px;
+  cursor: zoom-out;
+}
+/* Grooves + light reflection on the vinyl, gone when zoomed into the cover. */
+.mpw-mask::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.16), transparent 42%),
+    repeating-radial-gradient(circle at center, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 4px);
+  transition: opacity 0.4s;
+}
+.mpw-mask.is-zoomed::after {
+  opacity: 0;
+}
+.mpw-spin {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.mpw-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+.mpw-cover-blank {
+  background:
+    radial-gradient(circle at 30% 30%, #3a3a41, transparent 60%),
+    conic-gradient(from 210deg, #1b1b1f, #2b2b31, #141416, #26262a, #1b1b1f);
+}
+.mpw-cover-enter {
+  animation: mpw-cover-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.mpw-cover-exit {
+  animation: mpw-cover-out 0.6s ease both;
+}
+.mpw-hole {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  width: 18%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #141416;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 0 6px rgba(0, 0, 0, 0.25);
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
+}
+.mpw-hole-inner {
+  width: 26%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #0b0b0c;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.mpw-mask.is-zoomed .mpw-hole {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+}
+
+/* ---------- info column ---------- */
+
+.mpw-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mpw-scales {
+  width: 46px;
+  height: 50px;
+  fill: #ececee;
+  overflow: visible;
+  margin-bottom: 6px;
+  opacity: 0.92;
+}
+.mpw-track-info {
+  position: relative;
+  min-height: 70px;
+}
+.mpw-ti-abs {
+  position: absolute;
+  inset: 0;
+}
+.mpw-artist {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #9b9ba3;
+}
+.mpw-track {
+  margin: 6px 0 0;
+  font-size: clamp(22px, 3.4vw, 32px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mpw-ti-enter {
+  animation: mpw-ti-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.mpw-track.mpw-ti-enter {
+  animation-delay: 0.05s;
+}
+.mpw-ti-exit {
+  animation: mpw-ti-out 0.4s ease both;
+}
+
+.mpw-bar {
+  position: relative;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+.mpw-bar::before {
+  /* bigger hit area */
+  content: "";
+  position: absolute;
+  inset: -9px 0;
+}
+.mpw-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transition: width 0.12s linear;
+}
+.mpw-time {
+  display: flex;
+  gap: 6px;
+  font:
+    500 12px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  color: #6b6b73;
+}
+.mpw-current {
+  color: #9b9ba3;
+}
+
+/* ---------- controls ---------- */
+
+.mpw-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.mpw-ctrl {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #9b9ba3;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform 0.15s;
+}
+.mpw-ctrl:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.mpw-ctrl:active {
+  transform: scale(0.94);
+}
+.mpw-ctrl:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.mpw-ctrl-play {
+  width: 54px;
+  height: 54px;
+  background: #fff;
+  color: #0b0b0c;
+  box-shadow: 0 10px 30px -8px rgba(255, 255, 255, 0.35);
+}
+.mpw-ctrl-play:hover {
+  background: #fff;
+  color: #0b0b0c;
+  transform: scale(1.05);
+}
+.mpw-ctrl-toggle.is-active {
+  color: #fff;
+}
+.mpw-ctrl-toggle.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+}
+.mpw-loop-one {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.mpw-ctrl-loop.mode-one .mpw-loop-one {
+  opacity: 1;
+}
+
+/* ---------- small screens: stacked, centred ---------- */
+
+@media (max-width: 640px) {
+  .mpw-card {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 26px;
+    padding: 24px 18px;
+    text-align: center;
+  }
+  .mpw-info {
+    width: 100%;
+    align-items: stretch;
+  }
+  .mpw-scales {
+    margin-inline: auto;
+  }
+  .mpw-time,
+  .mpw-controls {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mpw-cover-enter,
+  .mpw-cover-exit,
+  .mpw-ti-enter,
+  .mpw-ti-exit {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* ---------- keyframes (from the component spec) ---------- */
+
+@keyframes mpw-cover-in {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes mpw-cover-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes mpw-ti-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--dx));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes mpw-ti-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--dx));
+  }
+}
