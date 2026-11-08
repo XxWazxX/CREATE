@@ -11,7 +11,6 @@ import {
   ProgressBar,
   ScalesMixer,
   TrackInfo,
-  useAudioAnalyser,
   useTrackLayers,
   type Direction,
   type LoopMode,
@@ -67,8 +66,31 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const shown = current ?? tracks[playable[0] ?? 0] ?? null;
 
   const { tracker, flushSoon } = useListenTracking(token, permissions.streaming);
-  // Read-only tap for the visualizer: the audio reaches the speakers unchanged (no effect, no gain).
-  const { getFrequencyData } = useAudioAnalyser(audio);
+  // The visualizer never touches the sound: no Web Audio routing (it can play the audio
+  // sped up on Safari / Bluetooth when sample rates differ). It follows the prod's
+  // waveform (computed at upload) at the current playback position instead.
+  const peaksRef = useRef<number[] | null>(null);
+  useEffect(() => {
+    peaksRef.current = current?.peaks ?? null;
+  }, [current]);
+  const bins = useRef(new Uint8Array(128));
+  const getFrequencyData = useCallback((): Uint8Array | null => {
+    const a = audio.current;
+    const peaks = peaksRef.current;
+    const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
+    if (!a || !peaks?.length || !dur) return null;
+    const at = (sec: number) => {
+      const x = Math.max(0, Math.min(peaks.length - 1, (sec / dur) * (peaks.length - 1)));
+      return Math.abs(peaks[Math.round(x)] ?? 0);
+    };
+    const out = bins.current;
+    for (let b = 0; b < out.length; b++) {
+      // Each band reads slightly further back in time: the motion travels across the dots.
+      const v = at(a.currentTime - b * 0.004) * (1 - b / 200);
+      out[b] = Math.max(0, Math.min(255, Math.round(v * 255)));
+    }
+    return out;
+  }, []);
 
   const dl = (kind: string, trackId?: string) =>
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
@@ -351,11 +373,10 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
           </div>
         ) : null}
 
-        {/* crossOrigin: lets the visualizer read the audio (the storage serves it with CORS). */}
+        {/* Plain <audio>: the file goes straight to the speakers, never through Web Audio. */}
         <audio
           ref={audio}
           preload="none"
-          crossOrigin="anonymous"
           onPlay={() => setPlaying(true)}
           onPlaying={(e) => {
             const a = e.currentTarget;
