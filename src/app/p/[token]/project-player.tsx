@@ -241,7 +241,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     shown?.id ?? "none",
     {
       title: shown?.title ?? project.name,
-      artist: [brand.name, shown ? meta(shown) : ""].filter(Boolean).join(" • "),
+      artist: shown ? meta(shown) : "",
       cover: shown?.coverUrl ?? project.coverUrl ?? null,
       fallback: generatedArt(shown?.id ?? project.id).backgroundImage,
     },
