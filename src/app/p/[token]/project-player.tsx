@@ -108,6 +108,8 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     const reload = (src: string) => {
       a.src = src;
       if (resumeAt) a.currentTime = resumeAt;
+      // Only resume playback if the visitor had started it (not for the silent preload).
+      if (index == null) return void a.load();
       setBuffering(true);
       a.play().catch(() => undefined);
     };
@@ -117,10 +119,11 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         at.fallback = true;
         return reload(t.fallbackUrl);
       }
-    } else if (!at.retried && t.streamUrl) {
+    } else if (!at.retried && t.freshUrl) {
       // Network hiccup: retry once with a fresh link.
       at.retried = true;
-      return reload(`${t.streamUrl}&r=${Date.now()}`);
+      // Expired link or network hiccup: once more through the always-valid address.
+      return reload(t.freshUrl);
     } else if (t.fallbackUrl && !at.fallback) {
       at.fallback = true;
       return reload(t.fallbackUrl);
@@ -143,7 +146,8 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
       setTime(0);
       setDuration(t.duration ?? 0);
       attempt.current = { index: i, retried: false, fallback: false };
-      a.src = t.streamUrl;
+      // Already preloaded (page opening / next prod): keep the buffer, just play.
+      if (a.src !== new URL(t.streamUrl, window.location.href).href) a.src = t.streamUrl;
       setTapToPlay(false);
       setBuffering(true);
       a.play().catch((e: unknown) => {
@@ -315,6 +319,32 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
 
   const canStream = permissions.streaming && playable.length > 0;
 
+  // First prod loads as soon as the page opens, so ▶ starts it right away.
+  useEffect(() => {
+    const a = audio.current;
+    const first = tracks[playable[0]];
+    if (!a || a.getAttribute("src") || !first?.streamUrl) return;
+    a.src = first.streamUrl;
+    attempt.current = { index: playable[0], retried: false, fallback: false };
+    a.load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // While a prod plays, the next one is fetched in the background (instant skip).
+  const nextUp = index == null ? null : tracks[playable[(playable.indexOf(index) + 1) % playable.length]];
+  useEffect(() => {
+    if (!playing || !nextUp?.streamUrl || nextUp === current) return;
+    const warm = new Audio();
+    warm.preload = "auto";
+    warm.muted = true;
+    warm.src = nextUp.streamUrl;
+    warm.load();
+    return () => {
+      warm.removeAttribute("src");
+      warm.load();
+    };
+  }, [playing, nextUp, current]);
+
   return (
     <TooltipProvider>
       <div
@@ -433,7 +463,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         {/* Plain <audio>: the file goes straight to the speakers, never through Web Audio. */}
         <audio
           ref={audio}
-          preload="none"
+          preload="auto"
           onPlay={() => setPlaying(true)}
           onPlaying={(e) => {
             const a = e.currentTarget;

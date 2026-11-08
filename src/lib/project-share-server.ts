@@ -154,8 +154,10 @@ export type PublicTrack = {
   genre: string | null;
   duration: number | null;
   coverUrl: string | null;
-  /** Always-valid audio address (server signs a fresh URL on each load). */
+  /** Direct signed audio URL (12 h) — starts playback without a detour. */
   streamUrl: string | null;
+  /** Always-valid audio address (server signs a fresh URL on each load). */
+  freshUrl: string | null;
   fallbackUrl: string | null;
   peaks: number[] | null;
   hasMp3: boolean;
@@ -221,14 +223,16 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
     ? await admin.from("track_versions").select("id, peaks").in("id", versionIds)
     : { data: [] };
 
-  // One round-trip for the cover URLs (6 h). Audio goes through /stream, which signs on demand.
+  // One round-trip for every URL the page needs (12 h). Audio is signed here so playback starts
+  // without a detour; /stream re-signs on demand if a page outlives these URLs.
   const toSign: string[] = [];
   for (const t of files) {
     if (t.cover_path) toSign.push(t.cover_path as string);
+    if (share.allow_streaming) toSign.push(streamPath(t));
   }
   const signedMap = new Map<string, string>();
   if (toSign.length) {
-    const { data } = await admin.storage.from("media").createSignedUrls([...new Set(toSign)], 60 * 60 * 6);
+    const { data } = await admin.storage.from("media").createSignedUrls([...new Set(toSign)], 60 * 60 * 12);
     for (const s of data ?? []) if (s.path && s.signedUrl) signedMap.set(s.path, s.signedUrl);
   }
 
@@ -241,7 +245,11 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
     genre: (t.genre as string | null) ?? null,
     duration: (t.duration as number | null) ?? null,
     coverUrl: t.cover_path ? (signedMap.get(t.cover_path as string) ?? null) : null,
-    streamUrl: share.allow_streaming ? `/api/p/${share.token}/stream?track=${t.id}` : null,
+    streamUrl: share.allow_streaming
+      ? (signedMap.get(streamPath(t)) ?? `/api/p/${share.token}/stream?track=${t.id}`)
+      : null,
+    // Always-valid address (fresh signature on each load) used to retry an expired / failed URL.
+    freshUrl: share.allow_streaming ? `/api/p/${share.token}/stream?track=${t.id}` : null,
     // MP3 copy to fall back on when a browser cannot play the original.
     fallbackUrl:
       share.allow_streaming && t.preview_path && streamPath(t) !== t.preview_path
