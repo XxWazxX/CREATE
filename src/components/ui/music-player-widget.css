@@ -1,6 +1,7 @@
 /* Vinyl music player widget (music-player-widget.tsx). Classes prefixed mpw- so
    they never clash with the app's own styles. */
 
+/* iOS-style frosted glass on a black page. */
 .mpw-card {
   position: relative;
   display: grid;
@@ -9,15 +10,81 @@
   gap: 36px;
   width: 100%;
   padding: 28px;
-  border-radius: 28px;
-  border: 1px solid #26262a;
-  background:
-    radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
-    linear-gradient(180deg, #17171a 0%, #111113 100%);
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
   box-shadow:
-    0 40px 90px -30px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: #ececee;
+    0 30px 80px -24px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  color: #f4f4f5;
+  overflow: hidden;
+}
+/* Light reflection across the top of the glass. */
+.mpw-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 60% at 20% -10%, rgba(255, 255, 255, 0.16), transparent 55%);
+}
+.mpw-card > * {
+  position: relative;
+}
+
+/* Blurred colour halo behind the card (from the cover); the page itself stays black. */
+.mpw-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.mpw-ambient-layer {
+  position: absolute;
+  left: 50%;
+  top: 300px;
+  width: min(560px, 95vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background-size: cover;
+  background-position: center;
+  border-radius: 50%;
+  filter: blur(110px) saturate(140%);
+  opacity: 0.26;
+  transition: opacity 0.8s ease;
+  animation: mpw-ambient-in 0.8s ease both;
+}
+.mpw-ambient-layer.is-leaving {
+  opacity: 0;
+}
+@keyframes mpw-ambient-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Small frosted pill (links under the card). */
+.mpw-glass-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background 0.2s;
+}
+.mpw-glass-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* ---------- disc ---------- */
@@ -176,7 +243,7 @@
   height: 4px;
   margin-top: 6px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.16);
   cursor: pointer;
 }
 .mpw-bar::before {
@@ -233,7 +300,7 @@
 }
 .mpw-ctrl:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.1);
 }
 .mpw-ctrl:active {
   transform: scale(0.94);

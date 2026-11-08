@@ -317,8 +317,23 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh bg-[#0b0b0c] px-3 pt-8 pb-14 md:pt-14" onClick={() => setZoomed(false)}>
-        <div className="mx-auto flex max-w-[780px] flex-col gap-10">
+      <div
+        className="relative isolate min-h-dvh overflow-hidden bg-black px-3 pt-8 pb-14 md:pt-14"
+        onClick={() => setZoomed(false)}
+      >
+        {/* Soft halo of the cover's colours behind the glass card (the page stays black). */}
+        <div aria-hidden className="mpw-ambient">
+          {layers.map((l, i) => (
+            <div
+              key={l.id}
+              className={cn("mpw-ambient-layer", i < layers.length - 1 && "is-leaving")}
+              style={{
+                backgroundImage: l.track.cover ? `url("${l.track.cover}")` : l.track.fallback,
+              }}
+            />
+          ))}
+        </div>
+        <div className="relative mx-auto flex max-w-[780px] flex-col gap-10">
           <header className="flex flex-col items-center text-center">
             <p className="pl-[0.45em] text-xl font-light tracking-[0.45em] text-white uppercase md:text-2xl">CREATE</p>
           </header>
@@ -400,7 +415,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
               href={`https://www.instagram.com/${brand.instagram}/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mx-auto text-[13px] text-[#9b9ba3] underline-offset-4 hover:text-white hover:underline"
+              className="mpw-glass-pill mx-auto px-4 py-2 text-[13px] text-[#d4d4d8] hover:text-white"
             >
               Instagram · @{brand.instagram}
             </a>
