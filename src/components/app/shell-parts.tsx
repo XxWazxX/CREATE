@@ -309,7 +309,7 @@ export function MobileTopBar() {
   const setPalette = useUI((s) => s.setPalette);
   const addMenu = useAddMenu();
   return (
-    <div className="border-line bg-panel flex h-12 shrink-0 items-center justify-between border-b px-3 pt-[env(safe-area-inset-top)] md:hidden">
+    <div className="glass flex h-12 shrink-0 items-center justify-between rounded-none border-x-0 border-t-0 px-3 pt-[env(safe-area-inset-top)] md:hidden">
       <Link href="/" className="pl-[0.45em] text-sm font-light tracking-[0.45em] text-white uppercase">
         CREATE
       </Link>
@@ -340,7 +340,7 @@ export function MobileNav() {
   const items = [NAV[0], NAV[1], NAV[2], NAV[3]];
   const more = [NAV[4], NAV[5], NAV[6], NAV[7], NAV[8], { href: "/settings", label: "Réglages" }];
   return (
-    <nav className="border-line bg-panel flex shrink-0 items-stretch border-t pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav className="glass mx-2 mb-[max(8px,env(safe-area-inset-bottom))] flex shrink-0 items-stretch rounded-full px-1 md:hidden">
       {items.map((it) => (
         <Link
           key={it.href}

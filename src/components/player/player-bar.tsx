@@ -292,7 +292,7 @@ export function PlayerBar() {
   return (
     <>
       {/* Desktop */}
-      <div className="border-line bg-panel animate-up hidden h-[84px] shrink-0 grid-cols-[minmax(180px,1fr)_minmax(320px,2fr)_minmax(180px,1fr)] items-center gap-6 border-t px-4 md:grid">
+      <div className="glass animate-up m-2 mt-0 hidden h-[84px] shrink-0 grid-cols-[minmax(180px,1fr)_minmax(320px,2fr)_minmax(180px,1fr)] items-center gap-6 rounded-3xl px-4 md:grid">
         <div className="flex min-w-0 items-center gap-3">
           <Link href={`/tracks/${current.trackId}`} className="shrink-0">
             <Cover path={current.coverPath} seed={current.trackId} className="size-12" />
@@ -324,7 +324,7 @@ export function PlayerBar() {
       </div>
 
       {/* Mobile mini player */}
-      <div className="border-line bg-panel relative shrink-0 border-t md:hidden">
+      <div className="glass relative mx-2 mb-1.5 shrink-0 overflow-hidden rounded-2xl md:hidden">
         <MiniProgress />
         <div className="flex h-16 items-center gap-3 px-3" onClick={() => setExpanded(true)}>
           <Cover path={current.coverPath} seed={current.trackId} className="size-11" />

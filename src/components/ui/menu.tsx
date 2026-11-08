@@ -25,19 +25,19 @@ export type MenuEntry =
   | { type: "submenu"; label: string; icon?: LucideIcon; items: MenuEntry[] };
 
 const content =
-  "z-50 min-w-52 overflow-hidden rounded-xl border border-line-strong bg-raised p-1 text-[13px] shadow-xl shadow-black/40 data-[state=open]:animate-pop";
+  "glass glass-pop z-50 min-w-52 overflow-hidden rounded-2xl p-1.5 text-[13px] data-[state=open]:animate-pop";
 const item =
-  "relative flex h-8 cursor-default select-none items-center gap-2.5 rounded-md px-2 text-fg outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-hover [&_svg]:size-4 [&_svg]:text-muted";
+  "glass-item relative flex h-8.5 cursor-default select-none items-center gap-2.5 rounded-xl px-2.5 text-fg/90 outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-40 [&_svg]:size-4 [&_svg]:text-muted data-[highlighted]:[&_svg]:text-fg";
 
 function Entries({ entries, kind }: { entries: MenuEntry[]; kind: "dropdown" | "context" }) {
   const P = kind === "dropdown" ? DM : CM;
   return (
     <>
       {entries.map((e, i) => {
-        if (e.type === "separator") return <P.Separator key={i} className="bg-line my-1 h-px" />;
+        if (e.type === "separator") return <P.Separator key={i} className="my-1.5 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />;
         if (e.type === "label")
           return (
-            <P.Label key={i} className="text-faint px-2 pt-1.5 pb-1 text-[11px] font-medium tracking-wide uppercase">
+            <P.Label key={i} className="text-faint px-2 pt-1.5 pb-1 text-[10.5px] font-medium tracking-[0.18em] uppercase">
               {e.label}
             </P.Label>
           );
@@ -64,7 +64,7 @@ function Entries({ entries, kind }: { entries: MenuEntry[]; kind: "dropdown" | "
             key={i}
             disabled={e.disabled}
             onSelect={e.onSelect}
-            className={cn(item, e.danger && "text-danger data-[highlighted]:bg-danger/10 [&_svg]:text-danger")}
+            className={cn(item, e.danger && "text-danger [&_svg]:text-danger data-[highlighted]:[&_svg]:text-danger")}
           >
             {Icon ? <Icon /> : null}
             <span className="flex-1 truncate">{e.label}</span>

@@ -150,6 +150,43 @@ body {
   backdrop-filter: blur(18px) saturate(150%);
 }
 
+/* In the components layer so utilities (rounded, border-x-0…) still override. */
+@layer components {
+/* Liquid glass: menus, popovers, dialogs and the floating sidebar / player.
+   Translucent tint + heavy blur, a light top edge and a soft sheen. */
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025) 45%, rgba(255, 255, 255, 0.04)),
+    rgba(18, 18, 22, 0.48);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+    0 24px 60px -16px rgba(0, 0, 0, 0.75),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+/* Floating popups sit over busy content: a touch more tint for legibility. */
+.glass-pop {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 50%),
+    rgba(20, 20, 24, 0.62);
+}
+/* Selected / hovered row inside glass: a brighter frosted pill. */
+.glass-item[data-highlighted],
+.glass-item[data-selected="true"],
+.glass-item[data-active="true"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.07));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+}
+.glass-item.text-danger[data-highlighted] {
+  color: var(--danger);
+  background: rgba(242, 112, 107, 0.12);
+}
+}
+
 /* Soft halo of the playing prod's colours behind the whole app. */
 .app-ambient {
   position: fixed;

@@ -76,7 +76,7 @@ export function Sidebar() {
   const setPalette = useUI((s) => s.setPalette);
 
   return (
-    <aside className="border-line bg-panel hidden w-60 shrink-0 flex-col border-r md:flex">
+    <aside className="glass m-2 mr-0 hidden w-60 shrink-0 flex-col overflow-hidden rounded-3xl md:flex">
       <div className="flex h-14 items-center justify-between px-4">
         <Link href="/" className="pl-[0.45em] text-[15px] font-light tracking-[0.45em] text-white uppercase">
           CREATE
@@ -111,7 +111,8 @@ export function Sidebar() {
 
       <ProjectTree />
 
-      <div className="border-line mt-auto border-t p-2">
+      <div className="mt-auto p-2 pt-3 [background:linear-gradient(to_bottom,transparent,rgba(255,255,255,0.025))]">
+        <div className="mx-1 mb-2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         <NavLink href="/settings" label="Réglages" icon={Settings} active={isActive(pathname, "/settings")} />
         <button
           onClick={() => setPalette(true)}
@@ -142,9 +143,10 @@ function NavLink({
   return (
     <Link
       href={href}
+      data-active={active}
       className={cn(
-        "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors",
-        active ? "bg-hover text-fg" : "text-muted hover:bg-hover/60 hover:text-fg",
+        "glass-item flex h-8.5 items-center gap-2.5 rounded-xl px-2.5 text-[13px] transition-colors",
+        active ? "text-fg" : "text-muted hover:bg-white/[0.04] hover:text-fg",
       )}
     >
       <Icon className={cn("size-4", active && "text-accent")} />

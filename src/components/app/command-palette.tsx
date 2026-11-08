@@ -55,13 +55,13 @@ export function CommandPalette() {
   };
 
   const itemCls =
-    "flex h-11 cursor-default items-center gap-3 rounded-lg px-3 text-[13px] data-[selected=true]:bg-hover [&_svg]:size-4 [&_svg]:text-muted";
+    "glass-item flex h-11 cursor-default items-center gap-3 rounded-xl px-3 text-[13px] [&_svg]:size-4 [&_svg]:text-muted";
 
   return (
     <D.Root open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <D.Portal>
-        <D.Overlay className="data-[state=open]:animate-in fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
-        <D.Content className="border-line-strong bg-panel data-[state=open]:animate-pop fixed top-[10vh] left-1/2 z-50 w-[calc(100vw-24px)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border shadow-2xl">
+        <D.Overlay className="data-[state=open]:animate-in fixed inset-0 z-50 bg-black/50 backdrop-blur-md" />
+        <D.Content className="glass glass-pop data-[state=open]:animate-pop fixed top-[10vh] left-1/2 z-50 w-[calc(100vw-24px)] max-w-xl -translate-x-1/2 overflow-hidden rounded-3xl">
           <D.Title className="sr-only">Recherche</D.Title>
           <D.Description className="sr-only">Rechercher des morceaux, projets et actions</D.Description>
           <Command shouldFilter={false} loop>

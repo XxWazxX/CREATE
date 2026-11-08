@@ -55,7 +55,7 @@ export function Tooltip({
         <T.Content
           side={side}
           sideOffset={6}
-          className="border-line-strong bg-raised text-fg data-[state=delayed-open]:animate-in z-[60] rounded-md border px-2 py-1 text-xs shadow-lg"
+          className="glass glass-pop text-fg data-[state=delayed-open]:animate-in z-[60] rounded-lg px-2 py-1 text-xs"
         >
           {content}
         </T.Content>

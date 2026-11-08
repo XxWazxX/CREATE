@@ -26,10 +26,10 @@ export function Dialog({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="data-[state=open]:animate-in fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
+        <D.Overlay className="data-[state=open]:animate-in fixed inset-0 z-50 bg-black/50 backdrop-blur-md" />
         <D.Content
           className={cn(
-            "border-line bg-panel data-[state=open]:animate-pop fixed top-[12vh] left-1/2 z-50 flex max-h-[80vh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border shadow-2xl shadow-black/50 outline-none",
+            "glass glass-pop data-[state=open]:animate-pop fixed top-[12vh] left-1/2 z-50 flex max-h-[80vh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-3xl outline-none",
             wide ? "max-w-2xl" : "max-w-md",
             className,
           )}
