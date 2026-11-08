@@ -136,6 +136,8 @@ export async function resolveProjectShare(token: string): Promise<Resolved> {
 export type ShareTrackFiles = {
   id: string;
   title: string;
+  bpm: number | string | null;
+  key: string | null;
   file_path: string;
   preview_path: string | null;
   mime_type: string | null;

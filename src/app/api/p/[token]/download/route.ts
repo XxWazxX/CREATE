@@ -1,3 +1,4 @@
+import { prodFileName } from "@/lib/download-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isLosslessMime,
@@ -46,7 +47,8 @@ async function zipManifest(zipName: string, entries: ZipEntry[]) {
  * Permission-checked downloads for a project link.
  *   ?kind=mp3|wav&track=ID   one track
  *   ?kind=stems&track=ID     ZIP manifest of a track's stems
- *   ?kind=all-mp3|all-wav    ZIP manifest of the whole project ("01 - Title.mp3")
+ *   ?kind=all-mp3|all-wav    ZIP manifest of the whole project
+ * Prods are named WAZ_BPM_Gamme_Nom de la prod (e.g. "WAZ_142_D#min_Midnight Drive.wav").
  *   ?kind=all-stems          ZIP manifest of every stem, one folder per track
  * Single files redirect to a signed URL; ZIP kinds return JSON (zipped client-side).
  */
@@ -62,7 +64,6 @@ export async function GET(req: Request, ctx: RouteContext<"/api/p/[token]/downlo
   const kind = url.searchParams.get("kind") ?? "";
   const trackId = url.searchParams.get("track");
   const tracks = await projectTrackFiles(share.project_id);
-  const pad = (i: number) => String(i + 1).padStart(2, "0");
   const forbidden = (what: string) =>
     new Response(`Le téléchargement ${what} n'est pas autorisé pour ce lien.`, { status: 403 });
 
@@ -76,7 +77,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/p/[token]/downlo
     const index = tracks.findIndex((t) => t.id === trackId);
     const t = tracks[index];
     if (!t) return new Response("Morceau introuvable", { status: 404 });
-    const base = `${pad(index)} - ${safe(t.title)}`;
+    const base = prodFileName(t);
     if (kind === "mp3") {
       const path = mp3Path(t);
       if (!path) return new Response("Pas de MP3 pour ce morceau.", { status: 404 });
@@ -95,7 +96,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/p/[token]/downlo
     if (!t.stems.length) return new Response("Aucun stem pour ce morceau.", { status: 404 });
     await shareHit(share.id, "download");
     return zipManifest(
-      `${base} - Stems.zip`,
+      `${base}_Stems.zip`,
       t.stems.map((s) => ({
         name: `${safe(s.name)}.${ext(s.original_filename ?? s.file_path, "wav")}`,
         path: s.file_path,
@@ -105,17 +106,25 @@ export async function GET(req: Request, ctx: RouteContext<"/api/p/[token]/downlo
 
   // Whole project
   const entries: ZipEntry[] = [];
-  tracks.forEach((t, i) => {
+  // Two prods with the same title / BPM / key get " (2)", " (3)"… so nothing is overwritten in the ZIP.
+  const used = new Map<string, number>();
+  const unique = (name: string) => {
+    const n = (used.get(name.toLowerCase()) ?? 0) + 1;
+    used.set(name.toLowerCase(), n);
+    return n === 1 ? name : `${name} (${n})`;
+  };
+  tracks.forEach((t) => {
+    const base = unique(prodFileName(t));
     if (kind === "all-mp3") {
       const path = mp3Path(t);
-      if (path) entries.push({ name: `${pad(i)} - ${safe(t.title)}.mp3`, path });
+      if (path) entries.push({ name: `${base}.mp3`, path });
     } else if (kind === "all-wav") {
       if (isLosslessMime(t.mime_type))
-        entries.push({ name: `${pad(i)} - ${safe(t.title)}.${ext(t.original_filename, "wav")}`, path: t.file_path });
+        entries.push({ name: `${base}.${ext(t.original_filename, "wav")}`, path: t.file_path });
     } else if (kind === "all-stems") {
       for (const s of t.stems)
         entries.push({
-          name: `${pad(i)} - ${safe(t.title)}/${safe(s.name)}.${ext(s.original_filename ?? s.file_path, "wav")}`,
+          name: `${base}/${safe(s.name)}.${ext(s.original_filename ?? s.file_path, "wav")}`,
           path: s.file_path,
         });
     }

@@ -21,6 +21,7 @@ import {
 import { TooltipProvider } from "@/components/ui/slider";
 import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
+import { prodFileName } from "@/lib/download-name";
 import { keyText } from "@/lib/email/studio-template";
 import { STEM_LABELS, type StemKind } from "@/lib/music";
 import { cn, formatBpm, formatDuration } from "@/lib/utils";
@@ -228,7 +229,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
           {
             label: `Télécharger les stems (${t.stems.length})`,
             icon: Layers,
-            onSelect: () => zip("stems", `${String(t.number).padStart(2, "0")} - ${t.title} - Stems.zip`, t.id),
+            onSelect: () => zip("stems", `${prodFileName(t)}_Stems.zip`, t.id),
           },
         ]
       : []),
@@ -462,9 +463,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                         ))}
                         {permissions.stems ? (
                           <button
-                            onClick={() =>
-                              zip("stems", `${String(t.number).padStart(2, "0")} - ${t.title} - Stems.zip`, t.id)
-                            }
+                            onClick={() => zip("stems", `${prodFileName(t)}_Stems.zip`, t.id)}
                             className="ml-1 inline-flex items-center gap-1 text-xs text-white hover:underline"
                           >
                             <Download className="size-3" /> Télécharger les stems
