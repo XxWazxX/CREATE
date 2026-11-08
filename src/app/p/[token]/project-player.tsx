@@ -7,8 +7,10 @@ import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
 import { PlayingBars } from "@/components/ui/misc";
 import {
   Controls,
+  Disc,
   nextLoopMode,
   ProgressBar,
+  ScalesMixer,
   shuffleOrder,
   TrackInfo,
   useAudioAnalyser,
@@ -17,7 +19,6 @@ import {
   type LoopMode,
 } from "@/components/ui/music-player-widget";
 import { TooltipProvider } from "@/components/ui/slider";
-import { levelFromFrequencies, VoicePoweredOrb } from "@/components/ui/voice-powered-orb";
 import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
 import { keyText } from "@/lib/email/studio-template";
@@ -71,6 +72,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const [shuffled, setShuffled] = useState(false);
   const [order, setOrder] = useState<number[]>(() => tracks.map((_, i) => i));
   const [direction, setDirection] = useState<Direction>(null);
+  const [zoomed, setZoomed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openStems, setOpenStems] = useState<string | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
@@ -83,16 +85,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const { tracker, flushSoon } = useListenTracking(token, permissions.streaming);
   // Read-only tap for the visualizer: the audio reaches the speakers unchanged (no effect, no gain).
   const { getFrequencyData } = useAudioAnalyser(audio);
-  const playingRef = useRef(false);
-  useEffect(() => {
-    playingRef.current = playing;
-  }, [playing]);
-  /** Music level 0–1 for the orb (silent while paused). */
-  const musicLevel = useCallback(() => {
-    if (!playingRef.current) return 0;
-    const data = getFrequencyData();
-    return data ? levelFromFrequencies(data, 1.1) : 0;
-  }, [getFrequencyData]);
 
   const dl = (kind: string, trackId?: string) =>
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
@@ -276,7 +268,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh bg-[#0b0b0c] px-3 pt-8 pb-14 md:pt-14">
+      <div className="min-h-dvh bg-[#0b0b0c] px-3 pt-8 pb-14 md:pt-14" onClick={() => setZoomed(false)}>
         <div className="mx-auto flex max-w-[780px] flex-col gap-10">
           {/* Logo */}
           <header className="flex flex-col items-center text-center">
@@ -296,23 +288,17 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
 
           {/* Player */}
           {canStream && shown ? (
-            <section className={cn("mpw-card", playing && "is-playing")}>
-              {/* Orb that breathes with the music, the prod's cover in its centre. */}
-              <VoicePoweredOrb className="mpw-orb" getLevel={musicLevel}>
-                <div className="mpw-orb-cover">
-                  {layers.map((l, i) => {
-                    const newest = i === layers.length - 1;
-                    const cls = cn("mpw-cover", newest ? l.dir && "mpw-cover-enter" : "mpw-cover-exit");
-                    return l.track.cover ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={l.id} src={l.track.cover} alt="" className={cls} draggable={false} />
-                    ) : (
-                      <div key={l.id} className={cls} style={{ backgroundImage: l.track.fallback }} />
-                    );
-                  })}
-                </div>
-              </VoicePoweredOrb>
+            <section className={cn("mpw-card", playing && "is-playing", zoomed && "is-zoomed")}>
+              <Disc
+                layers={layers}
+                isPlaying={playing}
+                isZoomed={zoomed}
+                trackKey={shown.id}
+                direction={direction}
+                onZoomToggle={() => setZoomed((z) => !z)}
+              />
               <div className="mpw-info">
+                <ScalesMixer isPlaying={playing} getFrequencyData={getFrequencyData} />
                 <TrackInfo layers={layers} />
                 <ProgressBar
                   currentTime={current ? time : 0}

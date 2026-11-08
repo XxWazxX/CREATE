@@ -111,32 +111,6 @@
   transform: translate(-50%, -50%) scale(0.4);
 }
 
-/* ---------- orb (voice-powered-orb.tsx) with the cover in its centre ---------- */
-
-.mpw-orb {
-  width: min(300px, 74vw);
-  aspect-ratio: 1;
-  flex-shrink: 0;
-}
-.mpw-orb-cover {
-  position: absolute;
-  z-index: 1;
-  left: 50%;
-  top: 50%;
-  width: 50%;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: #0b0b0c;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 12px 40px -8px rgba(0, 0, 0, 0.9);
-}
-.mpw-orb-cover .mpw-cover {
-  background-size: cover;
-}
-
 /* ---------- info column ---------- */
 
 .mpw-info {
