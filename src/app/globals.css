@@ -1,28 +1,33 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   CREATE design tokens — dark, quiet, one accent.
+   CREATE design tokens — same language as the listening page: pure black,
+   translucent glass panels with a thin light edge, white as the accent.
    --------------------------------------------------------------------------- */
 
 :root {
   color-scheme: dark;
-  --bg: #0b0b0c;
-  --panel: #101012;
-  --raised: #151518;
-  --hover: #1b1b1f;
-  --active: #222227;
-  --line: #1f1f23;
-  --line-strong: #2b2b31;
-  --fg: #ececee;
-  --muted: #9b9ba3;
-  --faint: #63636b;
+  --bg: #000000;
+  --panel: rgba(22, 22, 26, 0.55);
+  --raised: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.07);
+  --active: rgba(255, 255, 255, 0.11);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.15);
+  --fg: #f4f4f5;
+  --muted: #a1a1aa;
+  --faint: #60606a;
   --danger: #f2706b;
   --ok: #5fd38d;
-  --accent: #f2b544;
+  --accent: #ffffff;
   --accent-fg: #0b0b0c;
-  --wave: #3a3a41;
+  --wave: rgba(255, 255, 255, 0.2);
 }
 
+/* Optional colour accents (Réglages → Apparence); white by default. */
+:root[data-accent="amber"] {
+  --accent: #f2b544;
+}
 :root[data-accent="lime"] {
   --accent: #b6e45a;
 }
@@ -36,7 +41,7 @@
   --accent: #f2798f;
 }
 :root[data-accent="mono"] {
-  --accent: #ececee;
+  --accent: #ffffff;
 }
 
 @theme inline {
@@ -99,9 +104,14 @@
   }
 }
 
-html,
-body {
+/* Black is painted on the root only: the body stays transparent so the
+   ambient halo (z-index -1) shows behind the glass panels. */
+html {
   background: var(--bg);
+  color: var(--fg);
+}
+body {
+  background: transparent;
   color: var(--fg);
 }
 
@@ -127,6 +137,47 @@ body {
   outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* Frosted glass for every panel surface (sidebar, cards, dialogs, menus, player). */
+.bg-panel {
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.bg-raised {
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+/* Soft halo of the playing prod's colours behind the whole app. */
+.app-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.app-ambient-layer {
+  position: absolute;
+  left: 55%;
+  top: 30%;
+  width: min(620px, 90vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  transform: translate(-50%, -50%);
+  filter: blur(150px) saturate(130%);
+  opacity: 0.12;
+  animation: app-ambient-in 0.9s ease both;
+}
+
+/* Fades in to the layer's own opacity (a full fade-in would override it). */
+@keyframes app-ambient-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .tabular {

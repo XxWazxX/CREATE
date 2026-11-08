@@ -16,7 +16,7 @@ import { useUI } from "@/lib/ui-store";
 import { pickAndImport } from "@/lib/upload/pick";
 import { importFiles, useUploads } from "@/lib/upload/uploads";
 import { cn, errorMessage, isTypingTarget } from "@/lib/utils";
-import { isActive, Logo, NAV, useAddMenu } from "./sidebar";
+import { isActive, NAV, useAddMenu } from "./sidebar";
 
 // ---------------------------------------------------------------------------
 // Drop audio files anywhere to upload (into the open project, if any)
@@ -310,8 +310,8 @@ export function MobileTopBar() {
   const addMenu = useAddMenu();
   return (
     <div className="border-line bg-panel flex h-12 shrink-0 items-center justify-between border-b px-3 pt-[env(safe-area-inset-top)] md:hidden">
-      <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-[0.18em]">
-        <Logo /> CREATE
+      <Link href="/" className="pl-[0.45em] text-sm font-light tracking-[0.45em] text-white uppercase">
+        CREATE
       </Link>
       <div className="flex items-center gap-1">
         <button

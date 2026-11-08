@@ -227,7 +227,7 @@ export const DEFAULT_SETTINGS: Settings = {
     defaultMessage: "Salut,\n\nJe t'envoie quelques nouvelles prods. Dis-moi ce que tu en penses !",
   },
   audio: { defaultVolume: 0.85, autoplay: true, defaultSpeed: 1 },
-  appearance: { accent: "amber" },
+  appearance: { accent: "mono" },
   emailDesign: DEFAULT_EMAIL_DESIGN,
 };
 

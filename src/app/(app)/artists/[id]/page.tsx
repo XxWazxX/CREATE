@@ -60,7 +60,7 @@ export default function ArtistStatsPage() {
       </nav>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{artist?.artist_name ?? " "}</h1>
+          <h1 className="truncate text-2xl font-light tracking-[0.12em] uppercase">{artist?.artist_name ?? " "}</h1>
           <p className="text-muted font-mono text-[12.5px]">{artist?.email}</p>
         </div>
         <PeriodPicker value={period} onChange={setPeriod} />

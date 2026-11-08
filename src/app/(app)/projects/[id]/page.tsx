@@ -266,7 +266,7 @@ function ProjectHeader({
             <p className="text-faint mb-1 text-[11px] font-medium tracking-wider uppercase">
               {project.kind === "folder" ? "Dossier" : "Projet"}
             </p>
-            <h1 className="truncate text-2xl font-semibold tracking-tight md:text-3xl">{project.name}</h1>
+            <h1 className="truncate text-2xl font-light tracking-[0.12em] uppercase md:text-3xl">{project.name}</h1>
           </div>
         </div>
         {children}

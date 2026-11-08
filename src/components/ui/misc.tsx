@@ -73,7 +73,7 @@ export function PageHeader({
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-3 px-4 pt-6 pb-4 md:px-8 md:pt-8", className)}>
       <div className="min-w-0">
-        <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="truncate pl-[0.04em] text-2xl font-light tracking-[0.18em] uppercase md:text-[28px]">{title}</h1>
         {subtitle ? <p className="text-muted mt-0.5 text-[13px]">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

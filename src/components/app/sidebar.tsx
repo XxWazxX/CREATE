@@ -78,8 +78,7 @@ export function Sidebar() {
   return (
     <aside className="border-line bg-panel hidden w-60 shrink-0 flex-col border-r md:flex">
       <div className="flex h-14 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-[0.18em]">
-          <Logo />
+        <Link href="/" className="pl-[0.45em] text-[15px] font-light tracking-[0.45em] text-white uppercase">
           CREATE
         </Link>
       </div>
@@ -89,14 +88,14 @@ export function Sidebar() {
           align="start"
           entries={addMenu}
           trigger={
-            <button className="bg-accent text-accent-fg flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium transition hover:brightness-110">
+            <button className="bg-accent text-accent-fg flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-medium transition hover:opacity-90">
               <Plus className="size-4" /> Ajouter
             </button>
           }
         />
         <button
           onClick={() => setPalette(true)}
-          className="border-line text-muted hover:bg-hover hover:text-fg grid h-8 w-8 place-items-center rounded-lg border"
+          className="border-line text-muted hover:bg-hover hover:text-fg grid h-8 w-8 place-items-center rounded-full border"
           aria-label="Rechercher"
           title="Rechercher (Ctrl K)"
         >

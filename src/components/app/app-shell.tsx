@@ -2,6 +2,7 @@
 
 import { PlayerBar } from "@/components/player/player-bar";
 import { DialogHost } from "@/components/dialogs/dialog-host";
+import { AmbientHalo } from "./ambient-halo";
 import { CommandPalette } from "./command-palette";
 import { Providers } from "./providers";
 import { GlobalDropzone, KeyboardShortcuts, MobileNav, MobileTopBar, SettingsSync, UploadPanel } from "./shell-parts";
@@ -10,6 +11,7 @@ import { Sidebar } from "./sidebar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
+      <AmbientHalo />
       <div className="flex h-dvh flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1">
           <Sidebar />

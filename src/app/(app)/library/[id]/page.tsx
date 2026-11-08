@@ -189,7 +189,7 @@ function TrackFolder() {
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <FolderOpen className="text-accent size-7 shrink-0" />
-        <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight">
+        <h1 className="min-w-0 flex-1 truncate text-2xl font-light tracking-[0.12em] uppercase">
           {dir ? dir.label : track.title}
         </h1>
         {dir ? (

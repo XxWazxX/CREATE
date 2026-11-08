@@ -23,7 +23,7 @@ function Section({ title, href, children }: { title: string; href?: string; chil
   return (
     <section className="mt-10">
       <div className="mb-2 flex items-baseline justify-between px-4 md:px-8">
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="text-muted text-[11px] font-medium tracking-[0.24em] uppercase">{title}</h2>
         {href ? (
           <Link href={href} className="text-muted hover:text-fg flex items-center gap-1 text-xs">
             Tout voir <ArrowRight className="size-3" />
@@ -74,7 +74,7 @@ export default function Dashboard() {
           {greeting()}
           {name ? `, ${name}` : ""}
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Accueil</h1>
+        <h1 className="mt-1 text-2xl font-light tracking-[0.18em] uppercase md:text-[28px]">Accueil</h1>
         <button
           onClick={() => setPalette(true)}
           className="border-line bg-panel text-faint hover:border-line-strong hover:bg-raised mt-6 flex h-12 w-full max-w-2xl items-center gap-3 rounded-xl border px-4 text-left text-[14px] transition-colors"
