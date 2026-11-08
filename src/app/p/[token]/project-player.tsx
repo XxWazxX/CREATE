@@ -260,9 +260,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   };
 
   const trackMenu = (t: PublicTrack): MenuEntry[] => [
-    ...(permissions.mp3 && t.hasMp3
-      ? [{ label: "Télécharger le MP3", icon: Download, onSelect: () => (location.href = dl("mp3", t.id)) }]
-      : []),
     ...(permissions.wav && t.hasWav
       ? [{ label: "Télécharger le WAV", icon: Download, onSelect: () => (location.href = dl("wav", t.id)) }]
       : []),
@@ -288,9 +285,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   };
 
   const allDownloads: MenuEntry[] = [
-    ...(permissions.mp3 && tracks.some((t) => t.hasMp3)
-      ? [{ label: "Tout en MP3 (.zip)", icon: Download, onSelect: () => zip("all-mp3", `${project.name}.zip`) }]
-      : []),
     ...(permissions.wav && tracks.some((t) => t.hasWav)
       ? [{ label: "Tout en WAV (.zip)", icon: Download, onSelect: () => zip("all-wav", `${project.name} (WAV).zip`) }]
       : []),

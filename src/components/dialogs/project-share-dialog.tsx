@@ -74,12 +74,9 @@ function expiryText(s: ProjectShare) {
 function permsText(
   s: Pick<ProjectShare, "allow_streaming" | "allow_mp3_download" | "allow_wav_download" | "allow_stems_download">,
 ) {
-  return [
-    s.allow_streaming && "Écoute",
-    s.allow_mp3_download && "MP3",
-    s.allow_wav_download && "WAV",
-    s.allow_stems_download && "Stems",
-  ].filter(Boolean) as string[];
+  return [s.allow_streaming && "Écoute", s.allow_wav_download && "WAV", s.allow_stems_download && "Stems"].filter(
+    Boolean,
+  ) as string[];
 }
 
 export function ProjectShareDialog({
@@ -299,8 +296,9 @@ function ShareFormView({
   const [label, setLabel] = useState(share?.label ?? "");
   const [perms, setPerms] = useState({
     allow_streaming: share?.allow_streaming ?? true,
-    allow_mp3_download: share?.allow_mp3_download ?? true,
-    allow_wav_download: share?.allow_wav_download ?? false,
+    // Clients download the original WAV; MP3 downloads are no longer offered.
+    allow_mp3_download: false,
+    allow_wav_download: share?.allow_wav_download ?? true,
     allow_stems_download: share?.allow_stems_download ?? false,
   });
   const init = initialExpiry(share);
@@ -371,11 +369,6 @@ function ShareFormView({
             checked={perms.allow_streaming}
             onChange={(v) => setPerms((p) => ({ ...p, allow_streaming: v }))}
             label="Écoute"
-          />
-          <Checkbox
-            checked={perms.allow_mp3_download}
-            onChange={(v) => setPerms((p) => ({ ...p, allow_mp3_download: v }))}
-            label="Télécharger les MP3"
           />
           <Checkbox
             checked={perms.allow_wav_download}
@@ -604,8 +597,8 @@ function EmailView({
         target = await createProjectShare(project.id, {
           label: list.length === 1 ? (nameOf(list[0]) ?? list[0]) : "E-mail",
           allow_streaming: true,
-          allow_mp3_download: true,
-          allow_wav_download: false,
+          allow_mp3_download: false,
+          allow_wav_download: true,
           allow_stems_download: false,
           expires_at: null,
           password: null,
