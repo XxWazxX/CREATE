@@ -2,6 +2,7 @@
    they never clash with the app's own styles. */
 
 /* iOS-style frosted glass on a black page. */
+/* No frame: the player sits directly on the black page, over the colour halo. */
 .mpw-card {
   position: relative;
   display: grid;
@@ -10,35 +11,7 @@
   gap: 36px;
   width: 100%;
   padding: 28px;
-  border-radius: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.035) 0%,
-    rgba(255, 255, 255, 0.008) 45%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  -webkit-backdrop-filter: blur(8px) saturate(160%);
-  backdrop-filter: blur(8px) saturate(160%);
-  box-shadow:
-    0 30px 80px -24px rgba(0, 0, 0, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    inset 1px 0 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   color: #f4f4f5;
-  overflow: hidden;
-}
-/* Light reflection across the top of the glass. */
-.mpw-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(120% 60% at 20% -10%, rgba(255, 255, 255, 0.16), transparent 55%);
-}
-.mpw-card > * {
-  position: relative;
 }
 
 /* Blurred colour halo behind the card (from the cover); the page itself stays black. */
