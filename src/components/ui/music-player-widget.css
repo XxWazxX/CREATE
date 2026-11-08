@@ -25,14 +25,14 @@
   position: absolute;
   left: 50%;
   top: 300px;
-  width: min(560px, 95vw);
+  width: min(760px, 120vw);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   background-size: cover;
   background-position: center;
   border-radius: 50%;
-  filter: blur(110px) saturate(140%);
-  opacity: 0.32;
+  filter: blur(110px) saturate(170%);
+  opacity: 0.5;
   transition: opacity 0.8s ease;
   animation: mpw-ambient-in 0.8s ease both;
 }
