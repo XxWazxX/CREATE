@@ -153,6 +153,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.mpw-byline {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #9b9ba3;
+}
 .mpw-ti-enter {
   animation: mpw-ti-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }

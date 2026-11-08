@@ -286,6 +286,8 @@ const BURST_DURATION = 620;
 export interface Layer {
   id: number;
   track: Pick<Track, "title" | "artist" | "cover"> & {
+    /** Small line under the title (e.g. the producer). */
+    byline?: string;
     /** CSS background for the disc when there is no cover image. */
     fallback?: string;
   };
@@ -438,6 +440,11 @@ export function TrackInfo({ layers }: { layers: Layer[] }) {
             <h2 className={`mpw-track ${state}`} style={style} title={l.track.title}>
               {l.track.title}
             </h2>
+            {l.track.byline ? (
+              <p className={`mpw-byline ${state}`} style={style}>
+                {l.track.byline}
+              </p>
+            ) : null}
           </div>
         );
       })}

@@ -306,6 +306,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     {
       title: shown?.title ?? project.name,
       artist: shown ? meta(shown) : "",
+      byline: brand.name,
       cover: shown?.coverUrl ?? project.coverUrl ?? null,
       fallback: generatedArt(shown?.id ?? project.id).backgroundImage,
     },
@@ -318,20 +319,8 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     <TooltipProvider>
       <div className="min-h-dvh bg-[#0b0b0c] px-3 pt-8 pb-14 md:pt-14" onClick={() => setZoomed(false)}>
         <div className="mx-auto flex max-w-[780px] flex-col gap-10">
-          {/* Logo */}
           <header className="flex flex-col items-center text-center">
-            {brand.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={brand.logoUrl}
-                alt={brand.name}
-                className="h-auto max-h-16 w-auto max-w-[200px] object-contain"
-              />
-            ) : (
-              <p className="pl-[0.45em] text-xl font-light tracking-[0.45em] text-white uppercase md:text-2xl">
-                {brand.name}
-              </p>
-            )}
+            <p className="pl-[0.45em] text-xl font-light tracking-[0.45em] text-white uppercase md:text-2xl">CREATE</p>
           </header>
 
           {/* Player */}
@@ -406,10 +395,15 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             </p>
           )}
 
-          {permissions.streaming ? (
-            <p className="mx-auto max-w-md text-center text-[11px] leading-relaxed text-[#4a4a52]">
-              Cette page mesure de façon anonyme les morceaux lancés et la durée écoutée, pour informer l’auteur.
-            </p>
+          {brand.instagram ? (
+            <a
+              href={`https://www.instagram.com/${brand.instagram}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-auto text-[13px] text-[#9b9ba3] underline-offset-4 hover:text-white hover:underline"
+            >
+              Instagram · @{brand.instagram}
+            </a>
           ) : null}
         </div>
 
