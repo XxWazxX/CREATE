@@ -154,7 +154,9 @@ export type PublicTrack = {
   genre: string | null;
   duration: number | null;
   coverUrl: string | null;
+  /** Always-valid audio address (server signs a fresh URL on each load). */
   streamUrl: string | null;
+  fallbackUrl: string | null;
   peaks: number[] | null;
   hasMp3: boolean;
   hasWav: boolean;
@@ -219,11 +221,10 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
     ? await admin.from("track_versions").select("id, peaks").in("id", versionIds)
     : { data: [] };
 
-  // One round-trip for every signed URL the page needs (6 h validity).
+  // One round-trip for the cover URLs (6 h). Audio goes through /stream, which signs on demand.
   const toSign: string[] = [];
   for (const t of files) {
     if (t.cover_path) toSign.push(t.cover_path as string);
-    if (share.allow_streaming) toSign.push(streamPath(t));
   }
   const signedMap = new Map<string, string>();
   if (toSign.length) {
@@ -240,7 +241,12 @@ export async function publicProjectTracks(share: ShareRow): Promise<PublicTrack[
     genre: (t.genre as string | null) ?? null,
     duration: (t.duration as number | null) ?? null,
     coverUrl: t.cover_path ? (signedMap.get(t.cover_path as string) ?? null) : null,
-    streamUrl: share.allow_streaming ? (signedMap.get(streamPath(t)) ?? null) : null,
+    streamUrl: share.allow_streaming ? `/api/p/${share.token}/stream?track=${t.id}` : null,
+    // MP3 copy to fall back on when a browser cannot play the original.
+    fallbackUrl:
+      share.allow_streaming && t.preview_path && streamPath(t) !== t.preview_path
+        ? `/api/p/${share.token}/stream?track=${t.id}&v=mp3`
+        : null,
     peaks: (versions?.find((v) => v.id === t.current_version_id)?.peaks as number[] | null) ?? null,
     hasMp3: !!t.preview_path || t.mime_type === "audio/mpeg",
     hasWav: isLosslessMime(t.mime_type),

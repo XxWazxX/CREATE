@@ -95,6 +95,40 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const dl = (kind: string, trackId?: string) =>
     `/api/p/${token}/download?kind=${kind}${trackId ? `&track=${encodeURIComponent(trackId)}` : ""}`;
 
+  /** Current load attempt: one silent retry, then the MP3 copy, before showing an error. */
+  const attempt = useRef({ index: -1, retried: false, fallback: false });
+  const [buffering, setBuffering] = useState(false);
+
+  const recover = (a: HTMLAudioElement) => {
+    const at = attempt.current;
+    const t = tracks[at.index];
+    if (!t || !a.getAttribute("src")) return;
+    const code = a.error?.code;
+    const resumeAt = a.currentTime || 0;
+    const reload = (src: string) => {
+      a.src = src;
+      if (resumeAt) a.currentTime = resumeAt;
+      setBuffering(true);
+      a.play().catch(() => undefined);
+    };
+    // The browser can't decode the original (format): go straight to the MP3 copy.
+    if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || code === MediaError.MEDIA_ERR_DECODE) {
+      if (t.fallbackUrl && !at.fallback) {
+        at.fallback = true;
+        return reload(t.fallbackUrl);
+      }
+    } else if (!at.retried && t.streamUrl) {
+      // Network hiccup: retry once with a fresh link.
+      at.retried = true;
+      return reload(`${t.streamUrl}&r=${Date.now()}`);
+    } else if (t.fallbackUrl && !at.fallback) {
+      at.fallback = true;
+      return reload(t.fallbackUrl);
+    }
+    setBuffering(false);
+    setError("Lecture impossible — vérifie ta connexion, réessaie ou télécharge le morceau.");
+  };
+
   const start = useCallback(
     (i: number, opts: { fromEmail?: boolean; dir?: Direction } = {}) => {
       const t = tracks[i];
@@ -108,12 +142,20 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
       setIndex(i);
       setTime(0);
       setDuration(t.duration ?? 0);
+      attempt.current = { index: i, retried: false, fallback: false };
       a.src = t.streamUrl;
       setTapToPlay(false);
+      setBuffering(true);
       a.play().catch((e: unknown) => {
-        // Arriving from an email, the browser may refuse to start audio without a tap.
-        if (opts.fromEmail && e instanceof DOMException && e.name === "NotAllowedError") setTapToPlay(true);
-        else setError("Lecture impossible — réessaie ou télécharge le morceau.");
+        const name = e instanceof DOMException ? e.name : "";
+        // Another prod was started before this one loaded: not an error.
+        if (name === "AbortError") return;
+        // The browser wants a tap before playing sound (e.g. arriving from an email).
+        if (name === "NotAllowedError") {
+          setBuffering(false);
+          setTapToPlay(true);
+        }
+        // Load / decode failures arrive through onError, which retries.
       });
       if (!counted.current.has(t.id)) {
         counted.current.add(t.id);
@@ -344,7 +386,11 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                   onShuffle={() => undefined}
                   onLoop={() => setLoopMode(nextLoopMode)}
                 />
-                {error ? <p className="text-danger text-xs">{error}</p> : null}
+                {error ? (
+                  <p className="text-danger text-xs">{error}</p>
+                ) : buffering && current && !tapToPlay ? (
+                  <p className="text-xs text-[#9b9ba3]">Chargement…</p>
+                ) : null}
                 {tapToPlay && !playing ? (
                   <button onClick={toggle} className="self-start text-xs font-medium text-white max-sm:self-center">
                     Appuie sur lecture pour écouter « {shown.title} »
@@ -396,7 +442,9 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             tracker.time(a.currentTime, Number.isFinite(a.duration) ? a.duration : null);
           }}
           onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setDuration(e.currentTarget.duration)}
-          onError={() => index != null && setError("Lecture impossible — réessaie ou télécharge le morceau.")}
+          onWaiting={() => setBuffering(true)}
+          onCanPlay={() => setBuffering(false)}
+          onError={(e) => recover(e.currentTarget)}
         />
       </div>
     </TooltipProvider>
