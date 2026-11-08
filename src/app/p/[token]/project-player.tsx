@@ -1,17 +1,15 @@
 "use client";
 
-import { ChevronDown, Download, Layers, Play } from "lucide-react";
+import { Download, Layers } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { generatedArt } from "@/components/ui/cover";
 import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
-import { PlayingBars } from "@/components/ui/misc";
 import {
   Controls,
   Disc,
   nextLoopMode,
   ProgressBar,
   ScalesMixer,
-  shuffleOrder,
   TrackInfo,
   useAudioAnalyser,
   useTrackLayers,
@@ -23,8 +21,7 @@ import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
 import { prodFileName } from "@/lib/download-name";
 import { keyText } from "@/lib/email/studio-template";
-import { STEM_LABELS, type StemKind } from "@/lib/music";
-import { cn, formatBpm, formatDuration } from "@/lib/utils";
+import { cn, formatBpm } from "@/lib/utils";
 import type { PublicTrack } from "@/lib/project-share-server";
 
 type Permissions = { streaming: boolean; mp3: boolean; wav: boolean; stems: boolean };
@@ -45,17 +42,6 @@ type Props = {
   permissions: Permissions;
 };
 
-function Art({ url, seed, className }: { url: string | null; seed: string; className?: string }) {
-  return (
-    <div className={cn("relative shrink-0 overflow-hidden", className)} style={generatedArt(seed)}>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
-      ) : null}
-    </div>
-  );
-}
-
 function meta(t: PublicTrack) {
   return [t.bpm ? `${formatBpm(t.bpm)} BPM` : null, keyText(t.key)].filter(Boolean).join(" • ");
 }
@@ -70,15 +56,12 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loopMode, setLoopMode] = useState<LoopMode>("off");
-  const [shuffled, setShuffled] = useState(false);
-  const [order, setOrder] = useState<number[]>(() => tracks.map((_, i) => i));
   const [direction, setDirection] = useState<Direction>(null);
   const [zoomed, setZoomed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openStems, setOpenStems] = useState<string | null>(null);
   const [tapToPlay, setTapToPlay] = useState(false);
 
-  const playable = useMemo(() => order.filter((i) => tracks[i]?.streamUrl), [order, tracks]);
+  const playable = useMemo(() => tracks.map((_, i) => i).filter((i) => tracks[i].streamUrl), [tracks]);
   const current = index != null ? tracks[index] : null;
   // Before anything plays, the player shows the first prod.
   const shown = current ?? tracks[playable[0] ?? 0] ?? null;
@@ -126,7 +109,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     if (i < 0) return;
     const timer = window.setTimeout(() => {
       start(i, { fromEmail: true });
-      document.getElementById(`track-${t}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 0);
     return () => window.clearTimeout(timer);
     // Only on arrival.
@@ -170,14 +152,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     },
     [index, playable, start, loopMode],
   );
-
-  const toggleShuffle = () => {
-    setShuffled((s) => {
-      const on = !s;
-      setOrder(on ? shuffleOrder(index ?? playable[0] ?? 0, tracks.length) : tracks.map((_, i) => i));
-      return on;
-    });
-  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -235,6 +209,16 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
       : []),
   ];
 
+  /** Download button of the player: this prod, then the whole project. */
+  const downloadEntries = (t: PublicTrack | null): MenuEntry[] => {
+    const own = t ? trackMenu(t) : [];
+    return [
+      ...(own.length ? [{ type: "label" as const, label: t!.title }, ...own] : []),
+      ...(own.length && allDownloads.length ? [{ type: "separator" as const }] : []),
+      ...(allDownloads.length ? [{ type: "label" as const, label: "Tout le projet" }, ...allDownloads] : []),
+    ];
+  };
+
   const allDownloads: MenuEntry[] = [
     ...(permissions.mp3 && tracks.some((t) => t.hasMp3)
       ? [{ label: "Tout en MP3 (.zip)", icon: Download, onSelect: () => zip("all-mp3", `${project.name}.zip`) }]
@@ -264,7 +248,6 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     direction,
   );
 
-  const total = tracks.reduce((s, t) => s + (t.duration ?? 0), 0);
   const canStream = permissions.streaming && playable.length > 0;
 
   return (
@@ -316,12 +299,27 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                 />
                 <Controls
                   isPlaying={playing}
-                  shuffled={shuffled}
+                  shuffled={false}
                   loopMode={loopMode}
+                  leading={
+                    downloadEntries(shown).length ? (
+                      <DropdownMenu
+                        align="start"
+                        entries={downloadEntries(shown)}
+                        trigger={
+                          <button className="mpw-ctrl" aria-label="Télécharger" title="Télécharger">
+                            <Download className="size-4" />
+                          </button>
+                        }
+                      />
+                    ) : (
+                      <span className="mpw-ctrl" aria-hidden style={{ visibility: "hidden" }} />
+                    )
+                  }
                   onToggle={toggle}
                   onNext={() => step(1, true)}
                   onPrev={() => step(-1, true)}
-                  onShuffle={toggleShuffle}
+                  onShuffle={() => undefined}
                   onLoop={() => setLoopMode(nextLoopMode)}
                 />
                 {error ? <p className="text-danger text-xs">{error}</p> : null}
@@ -340,168 +338,11 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             </p>
           )}
 
-          {/* Prods */}
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <p className="text-[11px] tracking-[0.2em] text-[#6b6b73] uppercase">
-                {project.name} · {tracks.length} prod{tracks.length > 1 ? "s" : ""}
-                {total ? ` · ${Math.round(total / 60)} min` : ""}
-              </p>
-              {allDownloads.length === 1 ? (
-                <button
-                  onClick={() => {
-                    const only = allDownloads[0];
-                    if (!only.type || only.type === "item") only.onSelect();
-                  }}
-                  className="inline-flex items-center gap-1.5 text-[12px] text-[#9b9ba3] hover:text-white"
-                >
-                  <Download className="size-3.5" /> Tout télécharger
-                </button>
-              ) : allDownloads.length > 1 ? (
-                <DropdownMenu
-                  align="end"
-                  entries={allDownloads}
-                  trigger={
-                    <button className="inline-flex items-center gap-1.5 text-[12px] text-[#9b9ba3] hover:text-white">
-                      <Download className="size-3.5" /> Tout télécharger <ChevronDown className="size-3" />
-                    </button>
-                  }
-                />
-              ) : null}
-            </div>
-            <ol className="divide-y divide-[#1f1f23] overflow-hidden rounded-2xl border border-[#26262a] bg-[#111113]">
-              {tracks.map((t, i) => {
-                const isCurrent = index === i;
-                const menu = trackMenu(t);
-                return (
-                  <li key={t.id} id={`track-${t.id}`} className={cn("group", isCurrent && "bg-white/[0.04]")}>
-                    <div
-                      onClick={() => (t.streamUrl ? (isCurrent ? toggle() : start(i)) : undefined)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 md:px-4",
-                        t.streamUrl && "cursor-pointer hover:bg-white/[0.03]",
-                      )}
-                    >
-                      <span className="relative grid w-6 shrink-0 place-items-center">
-                        {isCurrent && playing ? (
-                          <PlayingBars className="[&_span]:bg-white" />
-                        ) : (
-                          <>
-                            <span
-                              className={cn(
-                                "font-mono text-xs text-[#6b6b73] tabular-nums",
-                                t.streamUrl && "group-hover:invisible",
-                                isCurrent && "text-white",
-                              )}
-                            >
-                              {String(t.number).padStart(2, "0")}
-                            </span>
-                            {t.streamUrl ? (
-                              <Play
-                                className="invisible absolute size-3.5 text-white group-hover:visible"
-                                fill="currentColor"
-                              />
-                            ) : null}
-                          </>
-                        )}
-                      </span>
-                      <Art url={t.coverUrl ?? project.coverUrl} seed={t.id} className="size-11 rounded-lg" />
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "truncate text-[13px] font-semibold tracking-[0.1em] uppercase",
-                            isCurrent ? "text-white" : "text-[#ececee]",
-                          )}
-                        >
-                          {t.title}
-                        </p>
-                        <p className="mt-1 truncate text-[11px] tracking-[0.12em] text-[#9b9ba3] uppercase">
-                          {meta(t) || " "}
-                        </p>
-                      </div>
-                      {t.stems.length ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenStems(openStems === t.id ? null : t.id);
-                          }}
-                          className="hidden items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[#6b6b73] hover:text-white sm:inline-flex"
-                        >
-                          <Layers className="size-3" /> {t.stems.length} stems
-                        </button>
-                      ) : null}
-                      <span className="w-10 shrink-0 text-right font-mono text-[12px] text-[#9b9ba3] tabular-nums">
-                        {formatDuration(t.duration)}
-                      </span>
-                      <div onClick={(e) => e.stopPropagation()} className="w-8 shrink-0">
-                        {menu.length ? (
-                          <DropdownMenu
-                            entries={menu}
-                            trigger={
-                              <button
-                                className="grid size-8 place-items-center rounded-md text-[#6b6b73] hover:bg-white/10 hover:text-white"
-                                aria-label={`Télécharger ${t.title}`}
-                              >
-                                <Download className="size-4" />
-                              </button>
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    </div>
-                    {t.stems.length && openStems === t.id ? (
-                      <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 md:pl-[100px]">
-                        <span className="text-[11px] tracking-wider text-[#6b6b73] uppercase">Stems</span>
-                        {t.stems.map((s) => (
-                          <span
-                            key={s.id}
-                            className="rounded-full border border-[#2b2b31] px-2 py-0.5 text-[11px] text-[#9b9ba3]"
-                            title={s.name}
-                          >
-                            {STEM_LABELS[s.kind as StemKind] ?? s.name}
-                          </span>
-                        ))}
-                        {permissions.stems ? (
-                          <button
-                            onClick={() => zip("stems", `${prodFileName(t)}_Stems.zip`, t.id)}
-                            className="ml-1 inline-flex items-center gap-1 text-xs text-white hover:underline"
-                          >
-                            <Download className="size-3" /> Télécharger les stems
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-              {tracks.length === 0 ? (
-                <li className="px-4 py-10 text-center text-sm text-[#9b9ba3]">Ce projet est vide pour l’instant.</li>
-              ) : null}
-            </ol>
-          </section>
-
-          {/* Footer */}
-          <footer className="text-center text-[13px] leading-relaxed text-[#9b9ba3]">
-            <p>Merci pour ton écoute et ton retour.</p>
-            <p>À bientôt.</p>
-            {brand.instagram ? (
-              <a
-                href={`https://www.instagram.com/${brand.instagram}/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-block underline hover:text-white"
-              >
-                Instagram · @{brand.instagram}
-              </a>
-            ) : null}
-            {permissions.streaming ? (
-              <p className="mx-auto mt-6 max-w-md text-[11px] text-[#6b6b73]">
-                Pour informer l’auteur, cette page mesure de façon anonyme les morceaux lancés et la durée écoutée.
-                Aucune donnée publicitaire, aucune empreinte de ton appareil.
-              </p>
-            ) : null}
-            <p className="mt-3 text-[10px] tracking-[0.2em] text-[#4a4a52]">LIEN PRIVÉ · CREATE</p>
-          </footer>
+          {permissions.streaming ? (
+            <p className="mx-auto max-w-md text-center text-[11px] leading-relaxed text-[#4a4a52]">
+              Cette page mesure de façon anonyme les morceaux lancés et la durée écoutée, pour informer l’auteur.
+            </p>
+          ) : null}
         </div>
 
         {zipping ? (

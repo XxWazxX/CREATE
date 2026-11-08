@@ -499,9 +499,12 @@ export function Controls({
   onPrev,
   onShuffle,
   onLoop,
+  leading,
 }: {
   isPlaying: boolean;
   shuffled: boolean;
+  /** Replaces the shuffle button (e.g. a download button). */
+  leading?: React.ReactNode;
   loopMode: LoopMode;
   onToggle: () => void;
   onNext: () => void;
@@ -511,31 +514,35 @@ export function Controls({
 }) {
   return (
     <div className="mpw-controls">
-      <button
-        className={`mpw-ctrl mpw-ctrl-toggle ${shuffled ? "is-active" : ""}`}
-        onClick={onShuffle}
-        aria-label="Lecture aléatoire"
-        aria-pressed={shuffled}
-        title="Lecture aléatoire"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="15"
-          height="15"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      {leading !== undefined ? (
+        leading
+      ) : (
+        <button
+          className={`mpw-ctrl mpw-ctrl-toggle ${shuffled ? "is-active" : ""}`}
+          onClick={onShuffle}
+          aria-label="Lecture aléatoire"
+          aria-pressed={shuffled}
+          title="Lecture aléatoire"
         >
-          <path d="M16 3h5v5" />
-          <path d="M21 3l-7 7" />
-          <path d="M3 21l7-7" />
-          <path d="M16 21h5v-5" />
-          <path d="M21 21l-7-7" />
-          <path d="M3 3l7 7" />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 24 24"
+            width="15"
+            height="15"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M16 3h5v5" />
+            <path d="M21 3l-7 7" />
+            <path d="M3 21l7-7" />
+            <path d="M16 21h5v-5" />
+            <path d="M21 21l-7-7" />
+            <path d="M3 3l7 7" />
+          </svg>
+        </button>
+      )}
       <button className="mpw-ctrl" onClick={onPrev} aria-label="Précédent">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
           <path d="M19 5L8 12l11 7zM5 5h2v14H5z" />
