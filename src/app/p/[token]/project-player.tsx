@@ -390,16 +390,18 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                   onShuffle={() => undefined}
                   onLoop={() => setLoopMode(nextLoopMode)}
                 />
-                {error ? (
-                  <p className="text-danger text-xs">{error}</p>
-                ) : buffering && current && !tapToPlay ? (
-                  <p className="text-xs text-[#9b9ba3]">Chargement…</p>
-                ) : null}
-                {tapToPlay && !playing ? (
-                  <button onClick={toggle} className="self-start text-xs font-medium text-white max-sm:self-center">
-                    Appuie sur lecture pour écouter « {shown.title} »
-                  </button>
-                ) : null}
+                {/* Fixed-height status line: messages never push the page (Instagram stays put). */}
+                <div className="h-4 min-w-0 truncate text-xs leading-4">
+                  {error ? (
+                    <span className="text-danger">{error}</span>
+                  ) : tapToPlay && !playing ? (
+                    <button onClick={toggle} className="font-medium text-white">
+                      Appuie sur lecture pour écouter « {shown.title} »
+                    </button>
+                  ) : buffering && current ? (
+                    <span className="text-[#9b9ba3]">Chargement…</span>
+                  ) : null}
+                </div>
               </div>
             </section>
           ) : (
