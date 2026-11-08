@@ -415,7 +415,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
               href={`https://www.instagram.com/${brand.instagram}/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mpw-glass-pill mx-auto px-4 py-2 text-[13px] text-[#d4d4d8] hover:text-white"
+              className="mpw-glass-pill mx-auto -mt-5 px-4 py-2 text-[13px] text-[#d4d4d8] hover:text-white"
             >
               Instagram · @{brand.instagram}
             </a>
