@@ -4,6 +4,7 @@ import { Download, Layers } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { generatedArt } from "@/components/ui/cover";
 import { DropdownMenu, type MenuEntry } from "@/components/ui/menu";
+import { PlayingBars } from "@/components/ui/misc";
 import {
   Controls,
   Disc,
@@ -20,7 +21,7 @@ import { useListenTracking } from "./use-listen-tracking";
 import { zipDownload } from "./zip-download";
 import { prodFileName } from "@/lib/download-name";
 import { keyText } from "@/lib/email/studio-template";
-import { cn, formatBpm } from "@/lib/utils";
+import { cn, formatBpm, formatDuration } from "@/lib/utils";
 import type { PublicTrack } from "@/lib/project-share-server";
 
 type Permissions = { streaming: boolean; mp3: boolean; wav: boolean; stems: boolean };
@@ -436,6 +437,82 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                 : "L’écoute en ligne est désactivée pour ce lien."}
             </p>
           )}
+
+          {/* Prods of the project */}
+          {canStream && tracks.length > 1 ? (
+            <section className="mpw-list">
+              <p className="mb-2 px-3 text-[10.5px] tracking-[0.24em] text-[#8a8a93] uppercase">
+                {project.name} · {tracks.length} prods
+              </p>
+              <ol>
+                {tracks.map((t, i) => {
+                  const isCurrent = index === i;
+                  const menu = trackMenu(t);
+                  return (
+                    <li key={t.id}>
+                      <div
+                        role="button"
+                        tabIndex={t.streamUrl ? 0 : -1}
+                        aria-current={isCurrent || undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!t.streamUrl) return;
+                          if (isCurrent) toggle();
+                          else start(i);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" || !t.streamUrl) return;
+                          if (isCurrent) toggle();
+                          else start(i);
+                        }}
+                        className={cn("mpw-row", isCurrent && "is-current", !t.streamUrl && "opacity-40")}
+                      >
+                        <span className="grid w-5 shrink-0 place-items-center text-[12px] text-[#7a7a83] tabular-nums">
+                          {isCurrent && playing ? (
+                            <PlayingBars className="[&>span]:bg-white" />
+                          ) : (
+                            i + 1
+                          )}
+                        </span>
+                        <span
+                          className="relative size-10 shrink-0 overflow-hidden rounded-lg"
+                          style={generatedArt(t.id)}
+                        >
+                          {t.coverUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.coverUrl} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                          ) : null}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cn("block truncate text-[14px] font-medium", isCurrent ? "text-white" : "text-[#e4e4e7]")}>
+                            {t.title}
+                          </span>
+                          <span className="block truncate text-[12px] text-[#8a8a93]">{meta(t) || brand.name}</span>
+                        </span>
+                        <span className="shrink-0 text-[12px] text-[#7a7a83] tabular-nums">{formatDuration(t.duration)}</span>
+                        {menu.length ? (
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu
+                              entries={menu}
+                              trigger={
+                                <button
+                                  className="grid size-8 place-items-center rounded-full text-[#9b9ba3] transition hover:bg-white/10 hover:text-white"
+                                  aria-label={`Télécharger ${t.title}`}
+                                  title="Télécharger"
+                                >
+                                  <Download className="size-4" />
+                                </button>
+                              }
+                            />
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : null}
 
           {brand.instagram ? (
             <a
