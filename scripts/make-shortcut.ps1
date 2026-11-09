@@ -20,12 +20,18 @@ $desktop = [Environment]::GetFolderPath("Desktop")
 $lnk = Join-Path $desktop "CREATE.lnk"
 $shell = New-Object -ComObject WScript.Shell
 $sc = $shell.CreateShortcut($lnk)
-$sc.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-$sc.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$(Join-Path $root 'scripts\launch.ps1')`""
-$sc.WorkingDirectory = $root
+# Opens the online app in its own window (no local server needed); Edge if Chrome is missing.
+$browser = @(
+  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+  "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+  "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
+  "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+$sc.TargetPath = $browser
+$sc.Arguments = "--app=https://create.wazprod.workers.dev"
+$sc.WorkingDirectory = Split-Path $browser
 $sc.IconLocation = "$icoPath,0"
 $sc.Description = "CREATE — bibliothèque de beats"
-$sc.WindowStyle = 7
 $sc.Save()
 Write-Output "Shortcut: $lnk"
 Write-Output "Icon: $icoPath"
