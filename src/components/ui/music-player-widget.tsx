@@ -468,26 +468,54 @@ export function ProgressBar({
   duration: number;
   onSeek: (pct: number) => void;
 }) {
-  const pct = duration ? Math.min(100, (currentTime / duration) * 100) : 0;
+  // While dragging, the knob follows the finger / mouse; the sound jumps on release.
+  const [drag, setDrag] = useState<number | null>(null);
+  const pctAt = (el: HTMLElement, x: number) => {
+    const r = el.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (x - r.left) / r.width));
+  };
+  const played = duration ? Math.min(1, currentTime / duration) : 0;
+  const pos = drag ?? played;
+  const shownTime = drag != null ? drag * duration : currentTime;
   return (
     <>
       <div
-        className="mpw-bar"
+        className={`mpw-bar${drag != null ? " is-dragging" : ""}`}
         role="slider"
         aria-label="Position"
         aria-valuemin={0}
         aria-valuemax={Math.round(duration)}
-        aria-valuenow={Math.round(currentTime)}
-        tabIndex={-1}
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          onSeek(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+        aria-valuenow={Math.round(shownTime)}
+        aria-valuetext={fmt(shownTime)}
+        tabIndex={0}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setDrag(pctAt(e.currentTarget, e.clientX));
+        }}
+        onPointerMove={(e) => {
+          if (drag != null) setDrag(pctAt(e.currentTarget, e.clientX));
+        }}
+        onPointerUp={(e) => {
+          if (drag == null) return;
+          onSeek(pctAt(e.currentTarget, e.clientX));
+          setDrag(null);
+        }}
+        onPointerCancel={() => setDrag(null)}
+        onKeyDown={(e) => {
+          if (!duration) return;
+          const d = e.key === "ArrowRight" ? 5 : e.key === "ArrowLeft" ? -5 : 0;
+          if (!d) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onSeek(Math.max(0, Math.min(1, (currentTime + d) / duration)));
         }}
       >
-        <div className="mpw-bar-fill" style={{ width: `${pct}%` }} />
+        <div className="mpw-bar-fill" style={{ width: `${pos * 100}%` }} />
+        <div className="mpw-bar-knob" style={{ left: `${pos * 100}%` }} />
       </div>
       <div className="mpw-time">
-        <span className="mpw-current">{fmt(currentTime)}</span>
+        <span className="mpw-current">{fmt(shownTime)}</span>
         <span className="mpw-sep">/</span>
         <span className="mpw-total">{fmt(duration)}</span>
       </div>

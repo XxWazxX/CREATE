@@ -381,8 +381,9 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                   duration={current ? duration || current.duration || 0 : (shown.duration ?? 0)}
                   onSeek={(pct) => {
                     const a = audio.current;
-                    if (!current) return start(index ?? playable[0]);
-                    const d = a?.duration || current.duration || 0;
+                    // Nothing playing yet: start the prod shown, right at the chosen spot.
+                    if (!current) start(index ?? playable[0]);
+                    const d = a?.duration || (current ?? shown)?.duration || 0;
                     if (a && d) {
                       a.currentTime = pct * d;
                       setTime(pct * d);
