@@ -4,6 +4,7 @@ import { mailProvider, sendEmail } from "@/lib/email/mailer";
 import { renderProjectEmail, type EmailTrack } from "@/lib/email/template";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_SETTINGS, type Settings } from "@/lib/types";
+import { PUBLIC_APP_URL } from "@/lib/utils";
 
 const Body = z.object({
   shareId: z.uuid(),
@@ -16,7 +17,7 @@ const Body = z.object({
 function appUrl(req: Request) {
   const u = new URL(req.url);
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname);
-  return ((local && process.env.NEXT_PUBLIC_APP_URL) || u.origin).replace(/\/$/, "");
+  return local ? PUBLIC_APP_URL : u.origin.replace(/\/$/, "");
 }
 
 /**

@@ -134,3 +134,6 @@ export function safeFilename(name: string): string {
 
 /** Artist set on every imported track (and shown when a track has none). */
 export const DEFAULT_ARTIST = "WAZ";
+
+/** Public address of CREATE: links made from a local run point here, never to localhost. */
+export const PUBLIC_APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://create.wazprod.workers.dev").replace(/\/$/, "");

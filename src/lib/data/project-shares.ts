@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import type { ProjectShare, ProjectSharePermissions } from "@/lib/types";
+import { PUBLIC_APP_URL } from "@/lib/utils";
 import { getQueryClient, qk } from "./client";
 
 const COLUMNS =
@@ -76,7 +77,7 @@ const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 export function projectShareUrl(token: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const isLocal = typeof window !== "undefined" && LOCAL_HOST.test(window.location.hostname);
-  const base = (isLocal && process.env.NEXT_PUBLIC_APP_URL) || origin || process.env.NEXT_PUBLIC_APP_URL || "";
+  const base = isLocal || !origin ? PUBLIC_APP_URL : origin;
   return `${base.replace(/\/$/, "")}/p/${token}`;
 }
 
