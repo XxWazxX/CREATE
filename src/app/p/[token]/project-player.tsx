@@ -169,19 +169,44 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     [tracks, token, tracker, index],
   );
 
-  // ▶ of one prod in the email → /p/{token}?t={trackId}: open the page on that prod.
+  // Arrival: the prod picked in the email (?t=…) or the first one starts by itself.
   useEffect(() => {
+    if (!permissions.streaming) return;
     const t = new URLSearchParams(window.location.search).get("t");
-    if (!t) return;
-    const i = tracks.findIndex((x) => x.id === t && x.streamUrl);
-    if (i < 0) return;
-    const timer = window.setTimeout(() => {
-      start(i, { fromEmail: true });
-    }, 0);
+    const picked = t ? tracks.findIndex((x) => x.id === t && x.streamUrl) : -1;
+    const i = picked >= 0 ? picked : playable[0];
+    if (i == null) return;
+    const timer = window.setTimeout(() => start(i, { fromEmail: true }), 0);
     return () => window.clearTimeout(timer);
     // Only on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Browsers often block sound until the visitor touches the page: if so, the very
+  // first tap / click / key anywhere (except a link) starts the prod.
+  useEffect(() => {
+    if (!tapToPlay) return;
+    const go = (e: Event) => {
+      // Links leave the page; buttons and the player's keys already handle play themselves.
+      if ((e.target as Element | null)?.closest?.("a, button, [role=menuitem]")) return;
+      if (e instanceof KeyboardEvent && [" ", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) return;
+      const a = audio.current;
+      if (!a || !a.paused) return;
+      setTapToPlay(false);
+      setBuffering(true);
+      a.play().catch(() => {
+        setBuffering(false);
+        setTapToPlay(true);
+      });
+    };
+    const opts = { capture: true } as const;
+    document.addEventListener("pointerdown", go, opts);
+    document.addEventListener("keydown", go, opts);
+    return () => {
+      document.removeEventListener("pointerdown", go, opts);
+      document.removeEventListener("keydown", go, opts);
+    };
+  }, [tapToPlay]);
 
   const toggle = useCallback(() => {
     const a = audio.current;
@@ -420,7 +445,7 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
                     <span className="text-danger">{error}</span>
                   ) : tapToPlay && !playing ? (
                     <button onClick={toggle} className="font-medium text-white">
-                      Appuie sur lecture pour écouter « {shown.title} »
+                      Touche l’écran pour écouter « {shown.title} »
                     </button>
                   ) : buffering && current ? (
                     <span className="text-[#9b9ba3]">Chargement…</span>
