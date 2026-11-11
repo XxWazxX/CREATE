@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import sharp from "sharp";
 
 const svg = readFileSync(new URL("../src/app/icon.svg", import.meta.url));
-const sizes = [256, 48, 32, 16];
+const sizes = [256, 128, 96, 64, 48, 40, 32, 24, 20, 16];
 
 const entries = [];
 for (const s of sizes) {
