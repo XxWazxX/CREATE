@@ -314,6 +314,70 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
 
   const canStream = permissions.streaming && playable.length > 0;
 
+  // Lock screen / notification controls: title, WAZ, cover, ⏮ ⏯ ⏭ and the seek bar.
+  const controls = useRef({ toggle, step });
+  useEffect(() => {
+    controls.current = { toggle, step };
+  }, [toggle, step]);
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const set = (action: MediaSessionAction, fn: MediaSessionActionHandler | null) => {
+      try {
+        ms.setActionHandler(action, fn);
+      } catch {
+        // Action not supported by this browser.
+      }
+    };
+    set("play", () => void audio.current?.play().catch(() => undefined));
+    set("pause", () => audio.current?.pause());
+    set("nexttrack", () => controls.current.step(1, true));
+    set("previoustrack", () => controls.current.step(-1, true));
+    set("seekto", (d) => {
+      const a = audio.current;
+      if (a && d.seekTime != null) a.currentTime = d.seekTime;
+    });
+    // With ⏮ / ⏭ set, phones show them instead of ±10 s buttons.
+    set("seekbackward", null);
+    set("seekforward", null);
+    return () => {
+      for (const a of ["play", "pause", "nexttrack", "previoustrack", "seekto"] as const) set(a, null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !current) return;
+    const art = current.coverUrl ?? project.coverUrl;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: current.title,
+      artist: brand.name.toUpperCase(),
+      album: project.name,
+      artwork: art
+        ? [{ src: art, sizes: "512x512" }]
+        : [{ src: "/icon-512.png", sizes: "512x512", type: "image/png" }],
+    });
+  }, [current, project.coverUrl, project.name, brand.name]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = current ? (playing ? "playing" : "paused") : "none";
+  }, [playing, current]);
+
+  // Keeps the lock-screen progress bar in sync (cheap: only on duration / track change and seeks).
+  const syncPosition = useCallback(() => {
+    const a = audio.current;
+    if (!("mediaSession" in navigator) || !a || !Number.isFinite(a.duration) || !a.duration) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: a.duration,
+        position: Math.min(a.currentTime, a.duration),
+        playbackRate: a.playbackRate || 1,
+      });
+    } catch {
+      // Not supported.
+    }
+  }, []);
+
   // First prod loads as soon as the page opens, so ▶ starts it right away.
   useEffect(() => {
     const a = audio.current;
@@ -536,7 +600,10 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         <audio
           ref={audio}
           preload="auto"
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            setPlaying(true);
+            syncPosition();
+          }}
           onPlaying={(e) => {
             const a = e.currentTarget;
             if (loaded.current)
@@ -547,14 +614,20 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             tracker.pause(e.currentTarget.currentTime);
             flushSoon();
           }}
-          onSeeked={(e) => tracker.seeked(e.currentTarget.currentTime)}
+          onSeeked={(e) => {
+            tracker.seeked(e.currentTarget.currentTime);
+            syncPosition();
+          }}
           onEnded={onEnded}
           onTimeUpdate={(e) => {
             const a = e.currentTarget;
             setTime(a.currentTime);
             tracker.time(a.currentTime, Number.isFinite(a.duration) ? a.duration : null);
           }}
-          onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setDuration(e.currentTarget.duration)}
+          onLoadedMetadata={(e) => {
+            if (Number.isFinite(e.currentTarget.duration)) setDuration(e.currentTarget.duration);
+            syncPosition();
+          }}
           onWaiting={() => setBuffering(true)}
           onCanPlay={() => setBuffering(false)}
           onError={(e) => recover(e.currentTarget)}
