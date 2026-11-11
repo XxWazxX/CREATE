@@ -3,6 +3,7 @@
 import { ArrowRight, Heart, Search, Upload } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { AnalyticsHomeSummary } from "@/components/analytics/home-summary";
 import { ProjectCard } from "@/components/track/project-card";
 import { TrackList } from "@/components/track/track-list";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default function Dashboard() {
   const { data: profile } = useProfile();
   const setPalette = useUI((s) => s.setPalette);
 
-  const { added, modified, played, favorites, recentProjects, tracksBy } = useMemo(() => {
+  const { added, modified, favorites, recentProjects, tracksBy } = useMemo(() => {
     const list = tracks ?? [];
     const by = (key: (t: Track) => string | null) =>
       list.filter((t) => key(t)).sort((a, b) => (key(b) ?? "").localeCompare(key(a) ?? ""));
@@ -53,7 +54,6 @@ export default function Dashboard() {
       modified: by((t) => (t.updated_at !== t.created_at ? t.updated_at : null))
         .filter((t) => !addedIds.has(t.id))
         .slice(0, 5),
-      played: by((t) => t.last_played_at).slice(0, 5),
       favorites: by((t) => t.favorited_at)
         .filter((t) => t.favorite)
         .slice(0, 5),
@@ -127,11 +127,9 @@ export default function Dashboard() {
             <TrackList tracks={added} plain home />
           </Section>
 
-          {played.length ? (
-            <Section title="Écoutés récemment">
-              <TrackList tracks={played} plain home />
-            </Section>
-          ) : null}
+          <Section title="Analytics · 30 derniers jours" href="/analytics">
+            <AnalyticsHomeSummary tracks={tracks} />
+          </Section>
 
           {modified.length ? (
             <Section title="Modifiés récemment">
