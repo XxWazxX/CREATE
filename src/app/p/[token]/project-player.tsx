@@ -389,6 +389,9 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   const nextUp = index == null ? null : tracks[playable[(playable.indexOf(index) + 1) % playable.length]];
   useEffect(() => {
     if (!playing || !nextUp?.streamUrl || nextUp === current) return;
+    // Not on iPhone / iPad: a second audio element can take over the lock-screen controls.
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    if (ios) return;
     const warm = new Audio();
     warm.preload = "auto";
     warm.muted = true;
@@ -604,6 +607,9 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
             const a = e.currentTarget;
             if (loaded.current)
               tracker.playing(loaded.current, a.currentTime, Number.isFinite(a.duration) ? a.duration : null);
+            // iPhone only keeps ⏮ ⏭ registered once the page is really "Now Playing".
+            registerLockScreen();
+            window.setTimeout(registerLockScreen, 1000);
           }}
           onPause={(e) => {
             setPlaying(false);
