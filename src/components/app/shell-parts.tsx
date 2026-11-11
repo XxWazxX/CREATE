@@ -309,7 +309,7 @@ export function MobileTopBar() {
   const setPalette = useUI((s) => s.setPalette);
   const addMenu = useAddMenu();
   return (
-    <div className="glass flex h-12 shrink-0 items-center justify-between rounded-none border-x-0 border-t-0 px-3 pt-[env(safe-area-inset-top)] md:hidden">
+    <div className="glass flex h-[calc(3rem+env(safe-area-inset-top))] shrink-0 items-center justify-between rounded-none border-x-0 border-t-0 px-3 pt-[env(safe-area-inset-top)] md:hidden">
       <Link href="/" className="pl-[0.45em] text-sm font-light tracking-[0.45em] text-white uppercase">
         CREATE
       </Link>

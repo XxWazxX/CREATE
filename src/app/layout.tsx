@@ -9,10 +9,12 @@ export const metadata: Metadata = {
   title: { default: "CREATE", template: "%s · CREATE" },
   description: "Bibliothèque de beats personnelle",
   robots: { index: false, follow: false },
+  // "Sur l'écran d'accueil" on iPhone: full-screen app, black status bar.
+  appleWebApp: { capable: true, title: "CREATE", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b0c",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
