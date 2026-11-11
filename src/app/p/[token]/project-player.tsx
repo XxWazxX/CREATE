@@ -319,7 +319,9 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
   useEffect(() => {
     controls.current = { toggle, step };
   }, [toggle, step]);
-  useEffect(() => {
+  // iPhone shows ±10 s instead of ⏮ ⏭ when seeking is offered, and forgets the
+  // handlers when the audio changes: no seek actions, and registered again on every play.
+  const registerLockScreen = useCallback(() => {
     if (!("mediaSession" in navigator)) return;
     const ms = navigator.mediaSession;
     const set = (action: MediaSessionAction, fn: MediaSessionActionHandler | null) => {
@@ -329,21 +331,27 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
         // Action not supported by this browser.
       }
     };
-    set("play", () => void audio.current?.play().catch(() => undefined));
-    set("pause", () => audio.current?.pause());
-    set("nexttrack", () => controls.current.step(1, true));
-    set("previoustrack", () => controls.current.step(-1, true));
-    set("seekto", (d) => {
-      const a = audio.current;
-      if (a && d.seekTime != null) a.currentTime = d.seekTime;
-    });
-    // With ⏮ / ⏭ set, phones show them instead of ±10 s buttons.
     set("seekbackward", null);
     set("seekforward", null);
-    return () => {
-      for (const a of ["play", "pause", "nexttrack", "previoustrack", "seekto"] as const) set(a, null);
-    };
+    set("seekto", null);
+    set("play", () => void audio.current?.play().catch(() => undefined));
+    set("pause", () => audio.current?.pause());
+    set("previoustrack", () => controls.current.step(-1, true));
+    set("nexttrack", () => controls.current.step(1, true));
   }, []);
+  useEffect(() => {
+    registerLockScreen();
+    return () => {
+      if (!("mediaSession" in navigator)) return;
+      for (const a of ["play", "pause", "nexttrack", "previoustrack"] as const) {
+        try {
+          navigator.mediaSession.setActionHandler(a, null);
+        } catch {
+          // Not supported.
+        }
+      }
+    };
+  }, [registerLockScreen]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator) || !current) return;
@@ -363,20 +371,8 @@ export function ProjectPlayer({ token, brand, project, tracks, permissions }: Pr
     navigator.mediaSession.playbackState = current ? (playing ? "playing" : "paused") : "none";
   }, [playing, current]);
 
-  // Keeps the lock-screen progress bar in sync (cheap: only on duration / track change and seeks).
-  const syncPosition = useCallback(() => {
-    const a = audio.current;
-    if (!("mediaSession" in navigator) || !a || !Number.isFinite(a.duration) || !a.duration) return;
-    try {
-      navigator.mediaSession.setPositionState({
-        duration: a.duration,
-        position: Math.min(a.currentTime, a.duration),
-        playbackRate: a.playbackRate || 1,
-      });
-    } catch {
-      // Not supported.
-    }
-  }, []);
+  // On each play / new prod / seek: lock-screen buttons registered again (iPhone resets them).
+  const syncPosition = registerLockScreen;
 
   // First prod loads as soon as the page opens, so ▶ starts it right away.
   useEffect(() => {
