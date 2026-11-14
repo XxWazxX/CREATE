@@ -70,7 +70,7 @@ export function CommandPalette() {
               <Command.Input
                 value={query}
                 onValueChange={setQuery}
-                placeholder="Titre, artiste, tag, 140, F#m, notes…"
+                placeholder="Titre, artiste, 140, F#m, notes…"
                 className="placeholder:text-faint h-13 flex-1 bg-transparent text-[15px] outline-none"
               />
               <Kbd>Esc</Kbd>

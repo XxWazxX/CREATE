@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Datalist, KeySelect, ProjectSelect, flattenProjects, useSuggestions } from "@/components/track/fields";
-import { TagInput } from "@/components/track/tag-input";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -182,9 +181,6 @@ function EditTrackForm({ track, onClose }: { track: Track; onClose: () => void }
         </Field>
         <Field label="Projet">
           <ProjectSelect value={form.project_id} onChange={(v) => set("project_id", v)} projects={projects} />
-        </Field>
-        <Field label="Tags" className="col-span-2">
-          <TagInput value={form.tag_ids} onChange={(v) => set("tag_ids", v)} />
         </Field>
         <Field label="Notes" className="col-span-2">
           <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={3} />

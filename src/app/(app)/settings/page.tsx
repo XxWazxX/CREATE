@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, CheckCircle2, ImagePlus, Palette, RotateCcw, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSignedUrl } from "@/components/ui/cover";
@@ -10,26 +10,15 @@ import { Field, Input, Switch, Textarea } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/misc";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/spinner";
-import {
-  TAG_COLORS,
-  createTag,
-  deleteTag,
-  saveProfile,
-  updateTag,
-  uploadLogo,
-  useProfile,
-  useStorageUsage,
-  useTags,
-} from "@/lib/data/library";
+import { saveProfile, uploadLogo, useProfile, useStorageUsage } from "@/lib/data/library";
 import { useTracks } from "@/lib/data/tracks";
 import { usePlayer } from "@/lib/player/store";
 import { instagramHandle, renderProjectEmail } from "@/lib/email/template";
 import { removeFiles } from "@/lib/storage";
 import { DEFAULT_EMAIL_DESIGN, EMAIL_FONTS, type EmailFont, type Settings } from "@/lib/types";
-import { confirm } from "@/lib/ui-store";
 import { cn, errorMessage, formatBytes } from "@/lib/utils";
 
-const TABS = ["Compte", "E-mail", "Audio", "Apparence", "Tags", "Stockage"] as const;
+const TABS = ["Compte", "E-mail", "Audio", "Apparence", "Stockage"] as const;
 type Tab = (typeof TABS)[number];
 
 const ACCENTS = [
@@ -139,8 +128,6 @@ export default function SettingsPage() {
             <AudioTab s={draft.audio} update={(p) => update("audio", p)} />
           ) : tab === "Apparence" ? (
             <AppearanceTab s={draft.appearance} update={(p) => update("appearance", p)} />
-          ) : tab === "Tags" ? (
-            <TagsTab />
           ) : (
             <StorageTab />
           )}
@@ -617,92 +604,6 @@ function AppearanceTab({
           ))}
         </div>
       </Field>
-    </Card>
-  );
-}
-
-function TagsTab() {
-  const { data: tags = [] } = useTags();
-  const { data: tracks = [] } = useTracks();
-  const [name, setName] = useState("");
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const t of tracks) for (const id of t.tag_ids) m.set(id, (m.get(id) ?? 0) + 1);
-    return m;
-  }, [tracks]);
-
-  return (
-    <Card title="Tags" description="Clique sur une couleur pour la changer, sur un nom pour le renommer.">
-      <form
-        className="flex gap-2"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!name.trim()) return;
-          try {
-            await createTag(name);
-            setName("");
-          } catch (err) {
-            toast.error(errorMessage(err));
-          }
-        }}
-      >
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nouveau tag — Trap, Dark, Mélodique…"
-        />
-        <Button type="submit" disabled={!name.trim()}>
-          Ajouter
-        </Button>
-      </form>
-      {tags.length ? (
-        <ul className="divide-line border-line divide-y rounded-xl border">
-          {tags.map((t) => (
-            <li key={t.id} className="group flex items-center gap-3 px-3 py-2">
-              <button
-                onClick={() => {
-                  const i = TAG_COLORS.indexOf(t.color ?? "");
-                  void updateTag(t.id, { color: TAG_COLORS[(i + 1) % TAG_COLORS.length] });
-                }}
-                className="size-3.5 rounded-full"
-                style={{ background: t.color ?? "var(--muted)" }}
-                aria-label="Changer la couleur"
-              />
-              <input
-                defaultValue={t.name}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== t.name)
-                    void updateTag(t.id, { name: v }).catch((err) => toast.error(errorMessage(err)));
-                  else e.target.value = t.name;
-                }}
-                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                className="focus:bg-hover min-w-0 flex-1 rounded bg-transparent px-1 text-[13px] outline-none"
-              />
-              <span className="text-faint text-xs">{counts.get(t.id) ?? 0}</span>
-              <button
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: `Supprimer le tag « ${t.name} » ?`,
-                      body: "Il sera retiré de tous les morceaux.",
-                      confirmLabel: "Supprimer",
-                      danger: true,
-                    })
-                  )
-                    await deleteTag(t.id).catch((err) => toast.error(errorMessage(err)));
-                }}
-                className="text-faint hover:text-danger rounded p-1 opacity-0 group-hover:opacity-100 max-md:opacity-100"
-                aria-label={`Supprimer ${t.name}`}
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-faint text-[13px]">Aucun tag pour l’instant.</p>
-      )}
     </Card>
   );
 }

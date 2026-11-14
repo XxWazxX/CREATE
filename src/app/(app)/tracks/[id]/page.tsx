@@ -24,7 +24,6 @@ import { KeySelect, ProjectSelect } from "@/components/track/fields";
 import { InlineEdit } from "@/components/track/inline-edit";
 import { NotesEditor } from "@/components/track/notes-editor";
 import { StemsPanel } from "@/components/track/stems-panel";
-import { TagInput } from "@/components/track/tag-input";
 import { VersionsPanel } from "@/components/track/versions-panel";
 import { Button } from "@/components/ui/button";
 import { Cover } from "@/components/ui/cover";
@@ -33,7 +32,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { Skeleton, Spinner } from "@/components/ui/spinner";
 import { Waveform } from "@/components/ui/waveform";
 import { uploadCover, useProjects } from "@/lib/data/library";
-import { setTrackTags, toggleFavorite, updateTrack, usePeaks, useTrackDetail } from "@/lib/data/tracks";
+import { toggleFavorite, updateTrack, usePeaks, useTrackDetail } from "@/lib/data/tracks";
 import { camelot, keyLabel, normalizeKey } from "@/lib/music";
 import { currentTime, trackToItem, usePlayer } from "@/lib/player/store";
 import { removeFiles } from "@/lib/storage";
@@ -417,13 +416,6 @@ function Details({ track }: { track: Track }) {
             className="hover:bg-hover h-8 w-44 border-0 bg-transparent text-right"
           />
         </Row>
-        <div className="border-line border-b py-2.5">
-          <span className="text-muted mb-2 block text-[13px]">Tags</span>
-          <TagInput
-            value={track.tag_ids}
-            onChange={(ids) => setTrackTags(track.id, ids).catch((e) => toast.error(errorMessage(e)))}
-          />
-        </div>
         <Row label="Durée">
           <span className="text-muted font-mono">{formatDuration(track.duration)}</span>
         </Row>

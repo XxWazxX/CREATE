@@ -169,7 +169,6 @@ export function LibraryView({
           filters={filters}
           setFilters={setFilters}
           genres={genres}
-          tags={tags}
           projects={projects}
           count={filterCount}
           hide={hideFilters}
@@ -273,7 +272,6 @@ function FilterPopover({
   filters,
   setFilters,
   genres,
-  tags,
   projects,
   count,
   hide,
@@ -281,7 +279,6 @@ function FilterPopover({
   filters: Filters;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
   genres: string[];
-  tags: { id: string; name: string; color: string | null }[];
   projects: Project[];
   count: number;
   hide: (keyof Filters)[];
@@ -378,20 +375,6 @@ function FilterPopover({
                   {genres.map((g) => (
                     <Chip key={g} on={!!filters.genres?.includes(g)} onClick={() => toggleIn("genres", g)}>
                       {g}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {tags.length ? (
-              <div>
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-1">
-                  {tags.map((t) => (
-                    <Chip key={t.id} on={!!filters.tagIds?.includes(t.id)} onClick={() => toggleIn("tagIds", t.id)}>
-                      <span className="size-1.5 rounded-full" style={{ background: t.color ?? "var(--muted)" }} />
-                      {t.name}
                     </Chip>
                   ))}
                 </div>

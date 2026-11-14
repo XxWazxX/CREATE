@@ -8,15 +8,15 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Cover } from "@/components/ui/cover";
 import { ContextMenu, DropdownMenu } from "@/components/ui/menu";
-import { PlayingBars, TagPill } from "@/components/ui/misc";
+import { PlayingBars } from "@/components/ui/misc";
 import { Spinner } from "@/components/ui/spinner";
-import { useProjects, useTags } from "@/lib/data/library";
+import { useProjects } from "@/lib/data/library";
 import { toggleFavorite } from "@/lib/data/tracks";
 import { DND_TRACKS, hasType, readTrackDrag, setTrackDrag } from "@/lib/dnd";
 import { shortKey } from "@/lib/music";
 import { usePlayer } from "@/lib/player/store";
 import { trackMenu, trashWithUndo } from "@/lib/track-actions";
-import type { Project, Tag, Track } from "@/lib/types";
+import type { Project, Track } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
 import { useUploads } from "@/lib/upload/uploads";
 import { cn, errorMessage, formatBpm, formatDuration, isTypingTarget, shortDate } from "@/lib/utils";
@@ -81,7 +81,6 @@ export function TrackList({
 }: Props) {
   const router = useRouter();
   const { data: projects = [] } = useProjects();
-  const { data: tags = [] } = useTags();
   const [selection, setSelection] = useState<string[]>([]);
   const anchor = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -90,7 +89,6 @@ export function TrackList({
   const setFocusTrack = useUI((s) => s.setFocusTrack);
 
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
-  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
   useEffect(() => {
     setScrollEl(document.getElementById("app-scroll"));
@@ -253,7 +251,6 @@ export function TrackList({
         <span className="hidden w-44 lg:block">Projet</span>
       ) : (
         <>
-          <span className="hidden w-44 lg:block">Tags</span>
           {showProject ? <span className="hidden w-32 xl:block">Projet</span> : null}
           <SortHeader label="Ajouté" k="created_at" sort={sort} onSort={onSortChange} className="hidden w-20 lg:flex" />
         </>
@@ -270,7 +267,6 @@ export function TrackList({
       selected={selection.includes(track.id)}
       selection={selection}
       project={track.project_id ? projectById.get(track.project_id) : undefined}
-      tagById={tagById}
       showProject={showProject}
       home={home}
       projects={projects}
@@ -351,7 +347,6 @@ type RowProps = {
   selected: boolean;
   selection: string[];
   project?: Project;
-  tagById: Map<string, Tag>;
   showProject: boolean;
   home: boolean;
   projects: Project[];
@@ -376,7 +371,6 @@ const TrackRow = memo(function TrackRow({
   selected,
   selection,
   project,
-  tagById,
   showProject,
   home,
   projects,
@@ -403,7 +397,6 @@ const TrackRow = memo(function TrackRow({
         ]
       : []),
   ];
-  const tags = track.tag_ids.map((id) => tagById.get(id)).filter((t): t is Tag => !!t);
   const meta = [track.bpm ? `${formatBpm(track.bpm)} BPM` : null, track.key ? shortKey(track.key) : null].filter(
     Boolean,
   );
@@ -527,12 +520,6 @@ const TrackRow = memo(function TrackRow({
           </span>
         ) : (
           <>
-            <div className="hidden w-44 gap-1 overflow-hidden lg:flex">
-              {tags.slice(0, 2).map((t) => (
-                <TagPill key={t.id} tag={t} />
-              ))}
-              {tags.length > 2 ? <span className="text-faint text-[11px]">+{tags.length - 2}</span> : null}
-            </div>
             {showProject ? (
               <span className="text-muted hidden w-32 truncate text-[12.5px] xl:block">
                 {project ? (
