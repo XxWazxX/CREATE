@@ -31,12 +31,17 @@ import { DropdownMenu } from "@/components/ui/menu";
 import { EmptyState } from "@/components/ui/misc";
 import { Skeleton } from "@/components/ui/spinner";
 import { useProjects } from "@/lib/data/library";
-import { useTracks } from "@/lib/data/tracks";
+import { MissingMigrationError, reorderTracks, useTracks } from "@/lib/data/tracks";
 import type { Filters } from "@/lib/search";
 import type { Project } from "@/lib/types";
 import { useUI } from "@/lib/ui-store";
 import { pickAndImport } from "@/lib/upload/pick";
-import { cn, formatDuration } from "@/lib/utils";
+import { cn, errorMessage, formatDuration } from "@/lib/utils";
+import { toast } from "sonner";
+import type { Sort } from "@/components/track/track-list";
+
+/** Prods of a project in the order set by drag & drop. */
+const PROJECT_ORDER: Sort = { key: "position", dir: "asc" };
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,6 +136,12 @@ export default function ProjectPage() {
     <LibraryView
       key={id}
       preset={preset}
+      defaultSort={PROJECT_ORDER}
+      onReorder={(ids) =>
+        reorderTracks(ids).catch((e) =>
+          toast.error(errorMessage(e), { duration: e instanceof MissingMigrationError ? 15000 : 5000 }),
+        )
+      }
       showProject={false}
       uploadProjectId={id}
       hideFilters={["projectId"]}

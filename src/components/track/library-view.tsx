@@ -32,6 +32,8 @@ type Props = {
   hideFilters?: (keyof Filters)[];
   /** Offer the folder layout (one folder per track) — the Library page. */
   folders?: boolean;
+  /** Project page: drag & drop to reorder (full list in project order only). */
+  onReorder?: (ids: string[]) => void;
 };
 
 const LAYOUT_KEY = "create.library.layout";
@@ -46,6 +48,7 @@ export function LibraryView({
   header,
   hideFilters = [],
   folders = false,
+  onReorder,
 }: Props) {
   const [layout, setLayout] = useState<"folders" | "list">(folders ? "folders" : "list");
   useEffect(() => {
@@ -253,7 +256,14 @@ export function LibraryView({
           emptyState={empty}
         />
       ) : (
-        <TrackList tracks={visible} sort={sort} onSortChange={setSort} showProject={showProject} emptyState={empty} />
+        <TrackList
+          tracks={visible}
+          sort={sort}
+          onSortChange={setSort}
+          showProject={showProject}
+          emptyState={empty}
+          onReorder={onReorder && !deferredQuery.trim() && !filterCount ? onReorder : undefined}
+        />
       )}
     </div>
   );

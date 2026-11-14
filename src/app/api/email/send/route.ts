@@ -54,17 +54,24 @@ export async function POST(req: Request) {
   if (share.expires_at && new Date(share.expires_at) <= new Date()) {
     return Response.json({ error: "Ce lien a expiré : crée un nouveau lien avant d'envoyer." }, { status: 409 });
   }
-  const [{ data: project }, { data: tracks }, { data: profile }] = await Promise.all([
-    supabase.from("projects").select("id, name, cover_path").eq("id", share.project_id).maybeSingle(),
+  const trackQuery = () =>
     supabase
       .from("tracks")
       .select("id, title, bpm, key, duration, cover_path, current_version_id")
       .eq("project_id", share.project_id)
       .is("deleted_at", null)
-      .not("file_path", "is", null)
+      .not("file_path", "is", null);
+  const [{ data: project }, ordered, { data: profile }] = await Promise.all([
+    supabase.from("projects").select("id, name, cover_path").eq("id", share.project_id).maybeSingle(),
+    // Same order as the project page (oldest first until migration 0006 is applied).
+    trackQuery()
+      .order("position", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
     supabase.from("profiles").select("display_name, settings").eq("id", auth.user.id).maybeSingle(),
   ]);
+  const tracks = ordered.error
+    ? (await trackQuery().order("created_at", { ascending: true })).data
+    : ordered.data;
   if (!project) return Response.json({ error: "Projet introuvable" }, { status: 404 });
 
   const settings: Settings["email"] = {

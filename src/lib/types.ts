@@ -31,6 +31,8 @@ export type Track = {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Manual order inside its project (null = after the ordered ones; absent before migration 0006). */
+  position?: number | null;
   /** tag ids (joined client-side from track_tags) */
   tag_ids: string[];
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, Heart, MoreHorizontal, Pause, Play } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Heart, MoreHorizontal, Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import { PlayingBars, TagPill } from "@/components/ui/misc";
 import { Spinner } from "@/components/ui/spinner";
 import { useProjects, useTags } from "@/lib/data/library";
 import { toggleFavorite } from "@/lib/data/tracks";
-import { setTrackDrag } from "@/lib/dnd";
+import { DND_TRACKS, hasType, readTrackDrag, setTrackDrag } from "@/lib/dnd";
 import { shortKey } from "@/lib/music";
 import { usePlayer } from "@/lib/player/store";
 import { trackMenu, trashWithUndo } from "@/lib/track-actions";
@@ -21,11 +21,16 @@ import { useUI } from "@/lib/ui-store";
 import { useUploads } from "@/lib/upload/uploads";
 import { cn, errorMessage, formatBpm, formatDuration, isTypingTarget, shortDate } from "@/lib/utils";
 
-export type SortKey = "title" | "bpm" | "key" | "created_at" | "duration" | "last_played_at";
+export type SortKey = "title" | "bpm" | "key" | "created_at" | "duration" | "last_played_at" | "position";
 export type Sort = { key: SortKey; dir: "asc" | "desc" };
 
 export function sortTracks(tracks: Track[], sort: Sort | null): Track[] {
   if (!sort) return tracks;
+  if (sort.key === "position") {
+    // Project order: placed prods first (1, 2, 3…), then the others oldest first.
+    const pos = (t: Track) => t.position ?? Number.POSITIVE_INFINITY;
+    return tracks.slice().sort((a, b) => pos(a) - pos(b) || a.created_at.localeCompare(b.created_at));
+  }
   const dir = sort.dir === "asc" ? 1 : -1;
   const val = (t: Track): string | number => {
     switch (sort.key) {
@@ -60,6 +65,8 @@ type Props = {
   emptyState?: React.ReactNode;
   /** Home page lists: no Tags / Ajouté columns, the project shown in their place. */
   home?: boolean;
+  /** Project page in project order: rows can be dragged to a new place. */
+  onReorder?: (ids: string[]) => void;
 };
 
 export function TrackList({
@@ -70,6 +77,7 @@ export function TrackList({
   plain,
   emptyState,
   home = false,
+  onReorder,
 }: Props) {
   const router = useRouter();
   const { data: projects = [] } = useProjects();
@@ -165,11 +173,79 @@ export function TrackList({
     [tracks],
   );
 
+  // Drag & drop reordering (project order only).
+  const reorderable = !!onReorder && sort?.key === "position";
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null);
+  const moveTo = useCallback(
+    (ids: string[], targetId: string, after: boolean) => {
+      if (!onReorder || ids.includes(targetId)) return;
+      const moving = tracks.filter((t) => ids.includes(t.id)).map((t) => t.id);
+      if (!moving.length) return;
+      const rest = tracks.filter((t) => !ids.includes(t.id)).map((t) => t.id);
+      const at = rest.indexOf(targetId) + (after ? 1 : 0);
+      onReorder([...rest.slice(0, at), ...moving, ...rest.slice(at)]);
+    },
+    [tracks, onReorder],
+  );
+  const step = useCallback(
+    (id: string, dir: -1 | 1) => {
+      const i = tracks.findIndex((t) => t.id === id);
+      const j = i + dir;
+      if (!onReorder || i < 0 || j < 0 || j >= tracks.length) return;
+      const ids = tracks.map((t) => t.id);
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      onReorder(ids);
+    },
+    [tracks, onReorder],
+  );
+  const dragHandlers = useMemo(
+    () =>
+      reorderable
+        ? {
+            over: (e: React.DragEvent, id: string) => {
+              if (!hasType(e, DND_TRACKS)) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              const r = e.currentTarget.getBoundingClientRect();
+              const after = e.clientY > r.top + r.height / 2;
+              setDropAt((d) => (d?.id === id && d.after === after ? d : { id, after }));
+            },
+            leave: () => setDropAt(null),
+            drop: (e: React.DragEvent, id: string) => {
+              const ids = readTrackDrag(e);
+              if (!ids) return;
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              setDropAt(null);
+              moveTo(ids, id, e.clientY > r.top + r.height / 2);
+            },
+            step,
+          }
+        : null,
+    [reorderable, moveTo, step],
+  );
+  useEffect(() => {
+    if (!dropAt) return;
+    const clear = () => setDropAt(null);
+    window.addEventListener("dragend", clear);
+    return () => window.removeEventListener("dragend", clear);
+  }, [dropAt]);
+
   if (!tracks.length) return <>{emptyState ?? null}</>;
 
   const header = (
     <div className="border-line text-faint hidden h-9 items-center gap-4 border-b px-4 text-[11px] font-medium tracking-wider uppercase md:flex md:px-8">
-      <span className="w-8 text-center">#</span>
+      {onReorder ? (
+        <SortHeader
+          label="#"
+          k="position"
+          sort={sort}
+          onSort={() => onSortChange?.({ key: "position", dir: "asc" })}
+          className="w-8 justify-center"
+        />
+      ) : (
+        <span className="w-8 text-center">#</span>
+      )}
       <SortHeader label="Titre" k="title" sort={sort} onSort={onSortChange} className="flex-1" />
       <SortHeader label="BPM" k="bpm" sort={sort} onSort={onSortChange} className="w-14" />
       <SortHeader label="Tonalité" k="key" sort={sort} onSort={onSortChange} className="w-14" />
@@ -202,6 +278,10 @@ export function TrackList({
       onClick={onRowClick}
       onPlay={play}
       router={router}
+      drag={dragHandlers}
+      dropEdge={dropAt?.id === track.id ? (dropAt.after ? "after" : "before") : null}
+      isFirst={index === 0}
+      isLast={index === tracks.length - 1}
     />
   );
 
@@ -279,6 +359,15 @@ type RowProps = {
   onClick: (e: React.MouseEvent, t: Track, i: number) => void;
   onPlay: (t: Track) => void;
   router: ReturnType<typeof useRouter>;
+  drag: {
+    over: (e: React.DragEvent, id: string) => void;
+    leave: () => void;
+    drop: (e: React.DragEvent, id: string) => void;
+    step: (id: string, dir: -1 | 1) => void;
+  } | null;
+  dropEdge: "before" | "after" | null;
+  isFirst: boolean;
+  isLast: boolean;
 };
 
 const TrackRow = memo(function TrackRow({
@@ -295,12 +384,25 @@ const TrackRow = memo(function TrackRow({
   onClick,
   onPlay,
   router,
+  drag,
+  dropEdge,
+  isFirst,
+  isLast,
 }: RowProps) {
   const isCurrent = usePlayer((s) => s.current?.trackId === track.id);
   const playing = usePlayer((s) => s.playing && s.current?.trackId === track.id);
   const job = useUploads((s) => s.jobs.find((j) => j.trackId === track.id && j.kind === "track" && j.stage !== "done"));
   const [menuOpen, setMenuOpen] = useState(false);
-  const entries = () => trackMenu(track, { router, projects, queue, selection });
+  const entries = () => [
+    ...trackMenu(track, { router, projects, queue, selection }),
+    ...(drag
+      ? [
+          { type: "separator" as const },
+          { label: "Monter", icon: ChevronUp, disabled: isFirst, onSelect: () => drag.step(track.id, -1) },
+          { label: "Descendre", icon: ChevronDown, disabled: isLast, onSelect: () => drag.step(track.id, 1) },
+        ]
+      : []),
+  ];
   const tags = track.tag_ids.map((id) => tagById.get(id)).filter((t): t is Tag => !!t);
   const meta = [track.bpm ? `${formatBpm(track.bpm)} BPM` : null, track.key ? shortKey(track.key) : null].filter(
     Boolean,
@@ -313,8 +415,16 @@ const TrackRow = memo(function TrackRow({
         onDragStart={(e) => setTrackDrag(e, selected && selection.length ? selection : [track.id], track.title)}
         onClick={(e) => onClick(e, track, index)}
         onDoubleClick={() => onPlay(track)}
+        onDragOver={drag ? (e) => drag.over(e, track.id) : undefined}
+        onDragLeave={drag ? drag.leave : undefined}
+        onDrop={drag ? (e) => drag.drop(e, track.id) : undefined}
         className={cn(
-          "group flex h-14 cursor-default items-center gap-4 px-4 transition-colors md:px-8",
+          "group relative flex h-14 cursor-default items-center gap-4 px-4 transition-colors md:px-8",
+          drag && "cursor-grab active:cursor-grabbing",
+          dropEdge === "before" &&
+            "before:bg-accent before:absolute before:inset-x-4 before:top-0 before:h-0.5 before:rounded-full md:before:inset-x-8",
+          dropEdge === "after" &&
+            "after:bg-accent after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:rounded-full md:after:inset-x-8",
           selected ? "bg-accent/10" : "hover:bg-hover/70",
           menuOpen && "bg-hover/70",
         )}

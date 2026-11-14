@@ -186,16 +186,21 @@ export function isLosslessMime(mime: string | null | undefined) {
 /** Tracks of the shared project, in a stable order (oldest first = 01, 02…). */
 export async function projectTrackFiles(projectId: string): Promise<(ShareTrackFiles & Record<string, unknown>)[]> {
   const admin = createAdminClient();
-  const { data: tracks } = await admin
-    .from("tracks")
-    .select(
-      "id, title, bpm, key, genre, duration, cover_path, file_path, preview_path, mime_type, original_filename, current_version_id, status",
-    )
-    .eq("project_id", projectId)
-    .is("deleted_at", null)
-    .not("file_path", "is", null)
-    .neq("status", "uploading")
+  const query = () =>
+    admin
+      .from("tracks")
+      .select(
+        "id, title, bpm, key, genre, duration, cover_path, file_path, preview_path, mime_type, original_filename, current_version_id, status",
+      )
+      .eq("project_id", projectId)
+      .is("deleted_at", null)
+      .not("file_path", "is", null)
+      .neq("status", "uploading");
+  // The order set in the project page; oldest first until migration 0006 is applied.
+  let { data: tracks, error } = await query()
+    .order("position", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
+  if (error) ({ data: tracks } = await query().order("created_at", { ascending: true }));
   const list = tracks ?? [];
   const { data: stems } = list.length
     ? await admin

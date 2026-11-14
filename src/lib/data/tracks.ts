@@ -168,9 +168,45 @@ export function toggleFavorite(track: Pick<Track, "id" | "favorite">) {
   return updateTrack(track.id, { favorite: !track.favorite });
 }
 
+/** True once migration 0006 (tracks.position) is applied: rows then carry the column. */
+export function hasTrackPositions() {
+  const list = getQueryClient().getQueryData<Track[]>(qk.tracks);
+  return !!list?.length && "position" in list[0];
+}
+
+export class MissingMigrationError extends Error {}
+
+/** New order of a project's prods (drag & drop). Saves only the rows whose place changed. */
+export async function reorderTracks(orderedIds: string[]) {
+  if (!hasTrackPositions()) {
+    throw new MissingMigrationError(
+      "Il manque la migration supabase/migrations/0006_track_position.sql : colle-la dans Supabase → SQL Editor → Run.",
+    );
+  }
+  const qc = getQueryClient();
+  const before = qc.getQueryData<Track[]>(qk.tracks);
+  const current = new Map(before?.map((t) => [t.id, t.position ?? null]));
+  const changed = orderedIds.map((id, i) => ({ id, position: i + 1 })).filter((x) => current.get(x.id) !== x.position);
+  if (!changed.length) return;
+  const next = new Map(changed.map((c) => [c.id, c.position]));
+  qc.setQueryData<Track[]>(qk.tracks, (list) =>
+    list?.map((t) => (next.has(t.id) ? { ...t, position: next.get(t.id) } : t)),
+  );
+  const results = await Promise.all(
+    changed.map((c) => supabase().from("tracks").update({ position: c.position }).eq("id", c.id)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    qc.setQueryData(qk.tracks, before);
+    throw failed.error;
+  }
+}
+
 export async function moveTracks(ids: string[], projectId: string | null) {
-  ids.forEach((id) => patchTrackCache(id, { project_id: projectId }));
-  const { error } = await supabase().from("tracks").update({ project_id: projectId }).in("id", ids);
+  // Arriving in a project: placed after its ordered prods.
+  const patch = hasTrackPositions() ? { project_id: projectId, position: null } : { project_id: projectId };
+  ids.forEach((id) => patchTrackCache(id, patch));
+  const { error } = await supabase().from("tracks").update(patch).in("id", ids);
   if (error) {
     await getQueryClient().invalidateQueries({ queryKey: qk.tracks });
     throw error;
