@@ -1,37 +1,29 @@
-﻿# Creates the CREATE icon (.ico) and a desktop shortcut to scripts/launch.ps1.
+﻿# Creates the CREATE desktop shortcut: a tiny launcher (CREATE.exe) with the logo built in,
+# which opens the online app in its own window. The shortcut points at the launcher, not at
+# chrome.exe: Chrome rewrites shortcuts to itself and the desktop then loses the icon.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
-# --- Icon: built from the app logo (src/app/icon.svg), metal grey on glass ---
-$icoPath = Join-Path $root "public\create.ico"
+# --- Icon from the app logo (src/app/icon.svg) ---
 Push-Location $root
 node scripts/make-icon.mjs
 Pop-Location
-# Windows caches shortcut icons by path: a copy named after its content forces the refresh.
-$hash = (Get-FileHash $icoPath -Algorithm MD5).Hash.Substring(0, 8)
-$iconDir = Join-Path $env:LOCALAPPDATA "CREATE"
-New-Item -ItemType Directory -Force $iconDir | Out-Null
-Get-ChildItem $iconDir -Filter "create-*.ico" | Remove-Item -Force
-$icoPath = Join-Path $iconDir "create-$hash.ico"
-Copy-Item (Join-Path $root "public\create.ico") $icoPath -Force
+
+# --- Launcher with the icon embedded ---
+$dir = Join-Path $env:LOCALAPPDATA "CREATE"
+New-Item -ItemType Directory -Force $dir | Out-Null
+$exe = Join-Path $dir "CREATE.exe"
+$csc = Get-ChildItem "$env:SystemRoot\Microsoft.NET\Framework64\v4*\csc.exe" | Select-Object -Last 1
+& $csc.FullName /nologo /target:winexe /optimize+ "/win32icon:$(Join-Path $root 'public\create.ico')" "/out:$exe" (Join-Path $root "scripts\launcher\CreateLauncher.cs")
+if ($LASTEXITCODE -ne 0) { throw "Launcher build failed" }
 
 # --- Shortcut on the (possibly OneDrive-redirected) desktop ---
-$desktop = [Environment]::GetFolderPath("Desktop")
-$lnk = Join-Path $desktop "CREATE.lnk"
-$shell = New-Object -ComObject WScript.Shell
-$sc = $shell.CreateShortcut($lnk)
-# Opens the online app in its own window (no local server needed); Edge if Chrome is missing.
-$browser = @(
-  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-  "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
-  "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
-  "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-$sc.TargetPath = $browser
-$sc.Arguments = "--app=https://create.wazprod.workers.dev"
-$sc.WorkingDirectory = Split-Path $browser
-$sc.IconLocation = "$icoPath,0"
+$lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "CREATE.lnk"
+$sc = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+$sc.TargetPath = $exe
+$sc.WorkingDirectory = $dir
+$sc.IconLocation = "$exe,0"
 $sc.Description = "CREATE — bibliothèque de beats"
 $sc.Save()
-Write-Output "Shortcut: $lnk"
-Write-Output "Icon: $icoPath"
+ie4uinit.exe -show
+Write-Output "Shortcut: $lnk -> $exe"
