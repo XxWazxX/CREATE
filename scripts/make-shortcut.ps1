@@ -10,7 +10,10 @@ node scripts/make-icon.mjs
 Pop-Location
 
 # --- Launcher with the icon embedded ---
-$dir = Join-Path $env:LOCALAPPDATA "CREATE"
+# New folder each time: Windows caches icons by path, so the desktop shows the fresh one.
+$root = Join-Path $env:LOCALAPPDATA "CREATE"
+Get-ChildItem $root -Directory -Filter "app-*" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+$dir = Join-Path $root ("app-" + (Get-Date -Format "yyyyMMddHHmmss"))
 New-Item -ItemType Directory -Force $dir | Out-Null
 $exe = Join-Path $dir "CREATE.exe"
 $csc = Get-ChildItem "$env:SystemRoot\Microsoft.NET\Framework64\v4*\csc.exe" | Select-Object -Last 1
